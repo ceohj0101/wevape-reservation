@@ -57,6 +57,10 @@ function serve(){
   assert(firstMenu === 'as', `사이드바 첫 메뉴 = AS 접수 (실제 ${firstMenu})`);
 
   // ---- 각 탭 상단의 단계 스트립 ----
+  const scopeLabel0 = (await page.textContent('#as-current-store-name')).trim();
+  assert(scopeLabel0.length > 0 && scopeLabel0 !== '-', `첫 진입부터 "보는 범위" 라벨이 채워져 있음 (실제 "${scopeLabel0}")`);
+  const scopeSel0 = await page.$eval('#as-scope-select', el => el.value);
+  assert(scopeSel0 !== '' , `범위 드롭다운도 같은 값으로 동기화 (실제 "${scopeSel0}")`);
   assert(await page.isVisible('#as-stage-strip'), 'AS 탭 상단에 단계 스트립 표시');
   const asStrips = await page.$$eval('#as-stage-strip .stage-strip', els => els.length);
   assert(asStrips === 2, `AS 전체 탭에서 본사·타사 스트립 2개 (실제 ${asStrips})`);

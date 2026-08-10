@@ -771,7 +771,7 @@ async function enterApp(){
     CURRENT_STORE_ID = 'all';
   }
   document.getElementById('app').style.display='block';
-  document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span> ${esc(scopeLabel())}`;
+  syncScopeUi();
   await refreshProductList();
   await refreshAsList();
 }
@@ -859,10 +859,8 @@ function setPrStage(code){
   refreshProductList();
 }
 
-/* 보는 범위(전체 매장 / 특정 매장)를 바꾸면 두 화면 모두 그 범위로 갱신됩니다. */
-function setScope(v){
-  CURRENT_STORE_ID = (v === 'all') ? 'all' : Number(v);
-  localStorage.setItem('resv_current_store', String(CURRENT_STORE_ID));
+/* 화면 곳곳에 흩어진 "보는 범위" 표시를 한 번에 맞춥니다 (첫 진입·범위 변경 모두 여기를 씁니다). */
+function syncScopeUi(){
   const label = scopeLabel();
   ['pr-current-store-name','as-current-store-name'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=label;
@@ -870,7 +868,14 @@ function setScope(v){
   ['pr-scope-select','as-scope-select'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value=String(CURRENT_STORE_ID);
   });
-  document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span> ${esc(label)}`;
+  const role = ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원');
+  document.getElementById('who-info').innerHTML = `<b>${esc(ME.name)}</b><span class="badge-role">${role}</span> ${esc(label)}`;
+}
+/* 보는 범위(전체 매장 / 특정 매장)를 바꾸면 두 화면 모두 그 범위로 갱신됩니다. */
+function setScope(v){
+  CURRENT_STORE_ID = (v === 'all') ? 'all' : Number(v);
+  localStorage.setItem('resv_current_store', String(CURRENT_STORE_ID));
+  syncScopeUi();
   refreshProductList();
   refreshAsList();
 }
