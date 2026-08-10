@@ -342,10 +342,10 @@ function serve(){
   await page.waitForTimeout(250);
   const prDetail0 = await page.textContent('#pr-detail');
   assert(prDetail0.includes('검토하기'), '일반 직원도 예약 "검토하기" 버튼이 보임');
-  assert(await page.isVisible('#pr-detail .status-jump select'), '예약 상세에 상태 직접 변경 드롭다운 표시');
+  assert(await page.isVisible('#pr-detail .status-chips'), '예약 상세에 진행 상황 버튼 표시');
 
-  // 상태 직접 변경으로 입고완료까지 한 번에 이동
-  await page.selectOption('#pr-detail .status-jump select', 'arrived');
+  // 진행 상황 버튼으로 입고완료까지 한 번에 이동
+  await page.click('#pr-detail .schip:has-text("입고완료")');
   await page.waitForTimeout(400);
   const prDetail1 = await page.textContent('#pr-detail');
   assert(prDetail1.includes('입고완료'), '드롭다운으로 상태를 입고완료로 변경');
@@ -362,7 +362,7 @@ function serve(){
   await page.waitForTimeout(250);
   await page.click('#as-list .row');
   await page.waitForTimeout(250);
-  assert(await page.isVisible('#as-detail .status-jump select'), 'AS 상세에도 상태 직접 변경 드롭다운 표시');
+  assert(await page.isVisible('#as-detail .status-chips'), 'AS 상세에도 진행 상황 버튼 표시');
 
   // ================= 설정: 직원 권한·소속 변경이 실제로 저장되는지 =================
   // (기존에는 resv_staff 를 직접 update 해서 RLS 때문에 조용히 무시되고 있었음)
@@ -413,8 +413,13 @@ function serve(){
     '단순접수 흐름에 입고·연락 대기 / 인계 완료 단계 표시');
   assert(simpleDetail.includes('접수 삭제'), 'AS 상세에 접수 삭제 버튼 표시');
 
+  // 진행 상황이 드롭다운이 아니라 버튼으로 보여야 함
+  assert(await page.isVisible('#as-detail .status-chips'), '진행 상황이 버튼(칩)으로 표시');
+  assert((await page.$$eval('#as-detail .schip', els=>els.length)) >= 4, '단순접수 진행 버튼이 단계 수만큼 표시');
+  assert((await page.$$eval('#as-detail .schip.on', els=>els.length)) === 1, '현재 단계 버튼이 강조 표시');
+
   // 입고·연락 대기까지 진행 → '연락 안 됨' 분기 확인
-  await page.selectOption('#as-detail .status-jump select', 'ready');
+  await page.click('#as-detail .schip:has-text("입고·연락 대기")');
   await page.waitForTimeout(400);
   assert((await page.textContent('#as-detail')).includes('연락 안 됨'), '입고·연락 대기 단계에서 "연락 안 됨" 버튼 노출');
   await page.click('#as-detail button:has-text("연락 안 됨")');
@@ -432,6 +437,22 @@ function serve(){
   await page.click('#modal-body button:has-text("삭제합니다")');
   await page.waitForTimeout(450);
   assert(!(await page.textContent('#as-list')).includes('인계고객'), '삭제 후 목록에서 사라짐');
+
+  // ================= 접수 정보 수정 =================
+  await page.click('#as-list .row');
+  await page.waitForTimeout(300);
+  assert((await page.textContent('#as-detail')).includes('정보 수정'), 'AS 상세에 "정보 수정" 버튼 표시');
+  await page.click('#as-detail button:has-text("정보 수정")');
+  await page.waitForTimeout(300);
+  assert(await page.isVisible('#e-method'), '수정 모달에 접수방식 선택 표시');
+  assert(await page.isVisible('#e-date'), '수정 모달에 접수일 입력 표시');
+  await page.click('#e-method button[data-m="단순접수"]');
+  await page.fill('#e-cname', '수정된고객');
+  await page.click('#modal-body button:has-text("저장")');
+  await page.waitForTimeout(500);
+  const editedDetail = await page.textContent('#as-detail');
+  assert(editedDetail.includes('수정된고객'), '수정한 고객명이 상세에 반영됨');
+  assert(editedDetail.includes('단순접수'), '수정한 접수방식이 반영됨');
 
   console.log('\n--- console/page errors captured ---');
   errors.forEach(e => console.log(e));

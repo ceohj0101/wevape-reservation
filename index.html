@@ -115,9 +115,17 @@
   .detail-card .field span:first-child{color:var(--gray);flex-shrink:0;}
   .detail-card .field b{color:#222;font-weight:700;text-align:right;}
   .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center;}
-  .status-jump{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;}
-  .status-jump span{font-size:11.5px;color:var(--gray);font-weight:700;white-space:nowrap;}
-  .status-jump select{border:none;background:none;font-size:13px;font-weight:700;font-family:inherit;outline:none;cursor:pointer;color:var(--black);}
+  /* 진행 상황 버튼 — 어느 단계인지 펼치지 않고 바로 보이게 */
+  .msub-title{font-size:13px;color:var(--gray);margin:-6px 0 12px;font-weight:600;}
+  .status-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;margin-top:4px;}
+  .status-chips .sch-label{font-size:11.5px;color:var(--gray);font-weight:800;margin-right:2px;}
+  .schip{border:1.5px solid var(--border);background:#fff;color:#666;border-radius:20px;padding:7px 13px;
+    font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}
+  .schip:hover{border-color:var(--yellow-dark);color:var(--black);}
+  .schip.passed{background:#fffbe8;border-color:#f0dfa0;color:#8a7300;}
+  .schip.on{background:var(--black);border-color:var(--black);color:#fff;}
+  .schip.branch{border-style:dashed;}
+  .schip.branch.on{background:var(--red);border-color:var(--red);color:#fff;}
   .back-btn{display:none;}
   .empty-detail{color:var(--gray);font-size:13px;text-align:center;padding:60px 20px;border:1.5px dashed var(--border);border-radius:14px;}
 
@@ -662,6 +670,10 @@ const STATUS_FLOW_AS = {
     {code:'received', label:'접수 완료'},
     {code:'erp_done', label:'ERP 기입 완료'}
   ],
+  hq_unknown: [
+    {code:'received', label:'접수 완료'},
+    {code:'erp_done', label:'ERP 기입 완료'}
+  ],
   hq_simple: [
     {code:'received', label:'접수 완료'},
     {code:'erp_done', label:'ERP 기입 완료'},
@@ -685,9 +697,13 @@ const ALL_STATUS_LABELS_AS = {
   processing:'처리중', ready:'입고·연락대기', completed:'인계완료', no_answer:'연락 두절'
 };
 function isSimpleIntake(entry){ return (entry.service_method||'') === '단순접수'; }
+/* 원본 시트에 접수방식 표기가 없던 건은 값이 비어 있습니다. 임의로 현장교체로 보지 않고
+   '미확인'으로 따로 모아서, 직원이 보고 직접 지정하게 합니다. */
+function isUnknownIntake(entry){ return !(entry.service_method||'').trim(); }
 function asFlowKey(entry){
   const cat = entry.category || 'hq';
   if(cat === 'other') return 'other';
+  if(isUnknownIntake(entry)) return 'hq_unknown';
   return isSimpleIntake(entry) ? 'hq_simple' : 'hq';
 }
 function asFlow(entry){ return STATUS_FLOW_AS[asFlowKey(entry)] || STATUS_FLOW_AS.hq; }
@@ -972,9 +988,10 @@ function renderAsStrip(){
   const scoped = AS_ITEMS_RAW.filter(r=>matchMonth(r,'as',AS_MONTH_FILTER));
   /* 같은 본사 제품이라도 현장교체와 단순접수는 처리 단계가 달라서 줄을 나눠 보여줍니다. */
   const GROUPS = [
-    {key:'hq',        name:'본사 제품 · 현장교체', cat:'hq'},
-    {key:'hq_simple', name:'본사 제품 · 단순접수', cat:'hq'},
-    {key:'other',     name:'타사 제품',            cat:'other'},
+    {key:'hq',         name:'본사 제품 · 현장교체',   cat:'hq'},
+    {key:'hq_simple',  name:'본사 제품 · 단순접수',   cat:'hq'},
+    {key:'hq_unknown', name:'접수방식 미확인 — 지정 필요', cat:'hq'},
+    {key:'other',      name:'타사 제품',              cat:'other'},
   ].filter(g => AS_CATEGORY_FILTER==='all' || g.cat===AS_CATEGORY_FILTER);
   /* 건이 하나도 없는 흐름은 숨겨서 화면을 짧게 유지하되,
      전부 비어있으면(그 달에 접수가 없으면) 최소한 기본 흐름은 보여줍니다. */
@@ -1052,6 +1069,115 @@ function setScope(v){
   syncScopeUi();
   refreshProductList();
   refreshAsList();
+}
+
+/* ================= 접수 정보 수정 =================
+   등록할 때 잘못 적었거나, 원본 시트에서 옮겨오며 비어버린 값(접수방식 등)을 고칩니다. */
+function openEditRecord(kind, id){
+  const isAs = kind==='as';
+  const r = isAs ? (AS_ITEMS_RAW||[]).find(x=>String(x.id)===String(id))
+                 : (PR_ITEMS_RAW||[]).find(x=>String(x.id)===String(id));
+  if(!r){ toast('기록을 찾을 수 없습니다'); return; }
+  const storeOpts = STORES.map(x=>`<option value="${x.id}" ${String(r.store_id)===String(x.id)?'selected':''}>${esc(x.name)}</option>`).join('');
+  const staffOpts = ['<option value="">미기재</option>'].concat(
+    STAFF_LIST.map(x=>`<option value="${esc(x.name)}" ${r.requested_by===x.name?'selected':''}>${esc(x.name)}</option>`)).join('');
+  const common = `
+    <div class="store-select-box">
+      <label>접수 매장</label>
+      <select id="e-store">${storeOpts}</select>
+      <label style="margin-top:10px;">접수자</label>
+      <select id="e-staff">${staffOpts}</select>
+    </div>`;
+  if(isAs){
+    const m = r.service_method || '';
+    openModal(`
+      <h2>접수 정보 수정</h2>
+      <div class="msub-title">${esc(asProductLabel(r))}</div>
+      ${common}
+      <label>접수방식</label>
+      <div class="type-toggle" id="e-method">
+        <button type="button" data-m="현장교체" class="${m==='현장교체'?'active':''}">현장교체</button>
+        <button type="button" data-m="단순접수" class="${m==='단순접수'?'active':''}">단순접수</button>
+      </div>
+      <div class="photo-hint">현장교체는 접수할 때 새 상품으로 바꿔드린 건, 단순접수는 물건을 맡아둔 건입니다. 단순접수는 입고 후 고객 인계 단계가 붙습니다.</div>
+      <label>접수일</label><input type="date" id="e-date" value="${esc((r.received_date||'').slice(0,10))}">
+      <div class="row2">
+        <div><label>고객 성함</label><input id="e-cname" value="${esc(r.customer_name||'')}"></div>
+        <div><label>연락처</label><input id="e-cphone" value="${esc(r.customer_phone||'')}"></div>
+      </div>
+      <label>메모</label><textarea id="e-memo">${esc(r.symptom_memo||'')}</textarea>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveEditRecord('as', ${r.id})">저장</button>
+      </div>
+    `);
+    document.getElementById('e-method').addEventListener('click',(e)=>{
+      const b=e.target.closest('button'); if(!b) return;
+      document.querySelectorAll('#e-method button').forEach(x=>x.classList.toggle('active', x===b));
+    });
+  } else {
+    const reasonOpts = ['<option value="">선택 안함</option>'].concat(
+      REASONS.product_request.map(x=>`<option value="${x.id}" ${String(r.reason_id)===String(x.id)?'selected':''}>${esc(x.label)}</option>`)).join('');
+    openModal(`
+      <h2>예약 정보 수정</h2>
+      ${common}
+      <label>유형</label>
+      <div class="type-toggle" id="e-type">
+        <button type="button" data-t="unstocked" class="${r.request_type!=='out_of_stock'?'active':''}">미취급 상품</button>
+        <button type="button" data-t="out_of_stock" class="${r.request_type==='out_of_stock'?'active':''}">품절 상품</button>
+      </div>
+      <label>제품명</label><input id="e-product" value="${esc(r.product_name||'')}">
+      <div class="row2">
+        <div><label>고객 성함</label><input id="e-cname" value="${esc(r.customer_name||'')}"></div>
+        <div><label>연락처</label><input id="e-cphone" value="${esc(r.customer_phone||'')}"></div>
+      </div>
+      <label>접수 사유</label><select id="e-reason">${reasonOpts}</select>
+      <label>메모</label><textarea id="e-memo">${esc(r.memo||'')}</textarea>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">취소</button>
+        <button class="btn btn-primary" onclick="saveEditRecord('pr', ${r.id})">저장</button>
+      </div>
+    `);
+    document.getElementById('e-type').addEventListener('click',(e)=>{
+      const b=e.target.closest('button'); if(!b) return;
+      document.querySelectorAll('#e-type button').forEach(x=>x.classList.toggle('active', x===b));
+    });
+  }
+}
+async function saveEditRecord(kind, id){
+  const val = i => { const el=document.getElementById(i); return el ? el.value.trim() : ''; };
+  const store_id = Number(document.getElementById('e-store').value);
+  const requested_by = val('e-staff') || '미기재';
+  if(kind==='as'){
+    const mBtn = document.querySelector('#e-method button.active');
+    const patch = {
+      store_id, requested_by,
+      service_method: mBtn ? mBtn.dataset.m : null,
+      received_date: val('e-date') || null,
+      customer_name: val('e-cname') || null,
+      customer_phone: val('e-cphone') || null,
+      symptom_memo: val('e-memo') || null,
+      updated_by: ME.name,
+    };
+    const { error } = await sb.from('resv_as_requests').update(patch).eq('id', id);
+    if(error){ toast('저장 실패: '+error.message); return; }
+    closeModal(); toast('수정했습니다'); refreshAsList();
+  } else {
+    const tBtn = document.querySelector('#e-type button.active');
+    const reason = val('e-reason');
+    const patch = {
+      store_id, requested_by,
+      request_type: tBtn ? tBtn.dataset.t : 'unstocked',
+      product_name: val('e-product') || '-',
+      customer_name: val('e-cname') || null,
+      customer_phone: val('e-cphone') || null,
+      reason_id: reason ? Number(reason) : null,
+      memo: val('e-memo') || null,
+    };
+    const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+    if(error){ toast('저장 실패: '+error.message); return; }
+    closeModal(); toast('수정했습니다'); refreshProductList();
+  }
 }
 
 /* ================= 접수 기록 삭제 =================
@@ -1312,8 +1438,9 @@ function prDetailHtml(r){
   if(PR_FLOW_ORDER.indexOf(r.status) > 0){
     actions += `<button class="btn btn-outline" onclick="revertPrStatus(${r.id})">이전 단계로</button>`;
   }
-  actions += prStatusSelectHtml(r);
+  actions += `<button class="btn btn-outline btn-sm" onclick="openEditRecord('pr', ${r.id})">정보 수정</button>`;
   actions += `<button class="btn btn-outline btn-sm" onclick="deleteRecord('pr', ${r.id})">접수 삭제</button>`;
+  actions += prStatusSelectHtml(r);
   const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
   return `<div class="detail-card">
     <div class="top-row">
@@ -1495,10 +1622,16 @@ async function submitContact(id){
 /* 상태 직접 변경 드롭다운 — 실무에서 순서대로 안 흘러가는 경우(이미 연락 끝났는데 입고 처리를 안 눌렀다든지)
    한 번에 맞는 상태로 바꿀 수 있게 합니다. 잘못 누른 것도 여기서 바로 되돌릴 수 있습니다. */
 function prStatusSelectHtml(r){
-  const opts = Object.entries(STATUS_LABEL_PR)
-    .map(([k,v])=>`<option value="${k}" ${k===r.status?'selected':''}>${esc(v)}</option>`).join('');
-  return `<label class="status-jump"><span>상태 직접 변경</span>
-    <select onchange="setPrStatus(${r.id}, this.value)">${opts}</select></label>`;
+  const idx = PR_FLOW_ORDER.indexOf(r.status);
+  const chips = Object.entries(STATUS_LABEL_PR).map(([k,v])=>{
+    const on = k===r.status;
+    const pos = PR_FLOW_ORDER.indexOf(k);
+    const branch = pos < 0;
+    const passed = !branch && idx>=0 && pos>=0 && pos<idx;
+    return `<button class="schip ${on?'on':''} ${passed?'passed':''} ${branch?'branch':''}"
+      onclick="setPrStatus(${r.id}, '${k}')">${esc(v)}</button>`;
+  }).join('');
+  return `<div class="status-chips"><span class="sch-label">진행 상황</span>${chips}</div>`;
 }
 async function setPrStatus(id, status){
   /* 상품 예약 테이블에는 updated_by 컬럼이 없어서, 누가 바꿨는지는 기존 reviewed_by 칸에 남깁니다. */
@@ -1605,8 +1738,9 @@ function asDetailHtml(r){
   if(r.status === 'no_answer'){
     actions += `<button class="btn btn-primary" onclick="setAsStatus(${r.id}, 'completed')">연락됨 · 인계 완료</button>`;
   }
-  actions += asStatusSelectHtml(r);
+  actions += `<button class="btn btn-outline btn-sm" onclick="openEditRecord('as', ${r.id})">정보 수정</button>`;
   actions += `<button class="btn btn-outline btn-sm" onclick="deleteRecord('as', ${r.id})">접수 삭제</button>`;
+  actions += asStatusSelectHtml(r);
   const contactLabel = r.contact_mode==='last4' ? '뒷 4자리만 수집' : '전체번호 수집';
   return `<div class="detail-card">
     <div class="top-row">
@@ -1617,7 +1751,8 @@ function asDetailHtml(r){
       <div class="badges"><span class="tag">${esc(AS_CATEGORY_LABEL[r.category]||'본사 제품')}</span></div>
     </div>
     ${asPipelineHtml(r)}
-    <div class="field"><span>접수방식</span><b>${esc(r.service_method||'-')}</b></div>
+    <div class="field"><span>접수방식</span><b>${r.service_method ? esc(r.service_method)
+      : `<span style="color:var(--red)">미확인</span> <button class="btn btn-sm btn-outline" style="margin-left:6px;" onclick="openEditRecord('as', ${r.id})">지정하기</button>`}</b></div>
     <div class="field"><span>고객 성함</span><b>${esc(r.customer_name||'-')}</b></div>
     <div class="field"><span>연락처</span><b>${esc(r.customer_phone||'-')} <span style="color:var(--gray);font-weight:500;font-size:11.5px;">(${contactLabel})</span></b></div>
     ${r.defect_reason? `<div class="field"><span>불량 사유</span><b>${esc(r.defect_reason)}</b></div>`:''}
@@ -1630,15 +1765,22 @@ function asDetailHtml(r){
 }
 /* AS도 마찬가지로 단계를 건너뛰거나 되돌려야 하는 경우가 있어 직접 변경을 열어둡니다.
    제품 구분(본사/타사)에 맞는 단계만 보여줍니다. */
+/* 진행 상황을 드롭다운 대신 버튼으로 늘어놓습니다.
+   어느 단계까지 왔는지 펼치지 않고도 바로 보이고, 아무 단계나 눌러서 옮길 수 있습니다. */
 function asStatusSelectHtml(r){
   const flow = asFlow(r);
-  let opts = flow.map(f=>`<option value="${f.code}" ${f.code===r.status?'selected':''}>${esc(f.label)}</option>`).join('');
+  let list = flow.map(f=>({code:f.code, label:f.label}));
   if(isSimpleIntake(r) || AS_BRANCH_STATUS[r.status]){
-    opts += Object.entries(AS_BRANCH_STATUS)
-      .map(([c,l])=>`<option value="${c}" ${c===r.status?'selected':''}>${esc(l)}</option>`).join('');
+    list = list.concat(Object.entries(AS_BRANCH_STATUS).map(([c,l])=>({code:c, label:l, branch:true})));
   }
-  return `<label class="status-jump"><span>상태 직접 변경</span>
-    <select onchange="setAsStatus(${r.id}, this.value)">${opts}</select></label>`;
+  const idx = flow.findIndex(f=>f.code===r.status);
+  const chips = list.map((f,i)=>{
+    const on = f.code===r.status;
+    const passed = !f.branch && idx>=0 && i<idx;
+    return `<button class="schip ${on?'on':''} ${passed?'passed':''} ${f.branch?'branch':''}"
+      onclick="setAsStatus(${r.id}, '${f.code}')">${esc(f.label)}</button>`;
+  }).join('');
+  return `<div class="status-chips"><span class="sch-label">진행 상황</span>${chips}</div>`;
 }
 async function setAsStatus(id, status){
   const { error } = await sb.from('resv_as_requests').update({ status, updated_by: ME.name }).eq('id', id);
