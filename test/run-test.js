@@ -305,6 +305,44 @@ function serve(){
   assert(await page.isVisible('#view-product.active'), '예약 보드 칸 클릭 → 상품 예약 화면으로 이동');
   assert((await page.$eval('#pr-status-filter', el => el.value)) === 'requested', '예약 상태 필터가 그 단계로 지정됨');
 
+  // ================= 상태 변경이 전 직원에게 열려 있는지 확인 =================
+  // (신재현 = 일반 직원 권한. 예전에는 실장만 예약 상태를 바꿀 수 있어 '문의접수'에서 멈췄음)
+  await page.click('.sidebar nav button[data-tab="product"]');
+  await page.waitForTimeout(250);
+  await page.selectOption('#pr-status-filter', 'all');   // 앞 단계에서 보드로 걸어둔 상태 필터 해제
+  await page.waitForTimeout(200);
+  await page.click('#pr-new-btn');
+  await page.waitForTimeout(200);
+  await page.fill('#f-product', '테스트 상품 A');
+  await page.fill('#f-cname', '상태고객');
+  await page.click('#modal-body .btn-primary');
+  await page.waitForTimeout(400);
+  await page.click('#pr-list .row');
+  await page.waitForTimeout(250);
+  const prDetail0 = await page.textContent('#pr-detail');
+  assert(prDetail0.includes('검토하기'), '일반 직원도 예약 "검토하기" 버튼이 보임');
+  assert(await page.isVisible('#pr-detail .status-jump select'), '예약 상세에 상태 직접 변경 드롭다운 표시');
+
+  // 상태 직접 변경으로 입고완료까지 한 번에 이동
+  await page.selectOption('#pr-detail .status-jump select', 'arrived');
+  await page.waitForTimeout(400);
+  const prDetail1 = await page.textContent('#pr-detail');
+  assert(prDetail1.includes('입고완료'), '드롭다운으로 상태를 입고완료로 변경');
+  assert(prDetail1.includes('이전 단계로'), '진행된 예약에 "이전 단계로" 버튼 표시');
+
+  // 되돌리기 동작
+  await page.click('#pr-detail button:has-text("이전 단계로")');
+  await page.waitForTimeout(400);
+  const prDetail2 = await page.textContent('#pr-detail');
+  assert(prDetail2.includes('발주가능'), '"이전 단계로" 클릭 시 한 단계 뒤로 이동');
+
+  // AS 쪽 상태 직접 변경
+  await page.click('.sidebar nav button[data-tab="as"]');
+  await page.waitForTimeout(250);
+  await page.click('#as-list .row');
+  await page.waitForTimeout(250);
+  assert(await page.isVisible('#as-detail .status-jump select'), 'AS 상세에도 상태 직접 변경 드롭다운 표시');
+
   console.log('\n--- console/page errors captured ---');
   errors.forEach(e => console.log(e));
   console.log(errors.length ? `${errors.length} error(s) captured (see above; some may be benign 404s from stubbed CDN).` : 'no console/page errors');

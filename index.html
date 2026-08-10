@@ -114,7 +114,10 @@
   .detail-card .field{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f2f2f3;font-size:13px;gap:12px;}
   .detail-card .field span:first-child{color:var(--gray);flex-shrink:0;}
   .detail-card .field b{color:#222;font-weight:700;text-align:right;}
-  .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+  .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center;}
+  .status-jump{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;}
+  .status-jump span{font-size:11.5px;color:var(--gray);font-weight:700;white-space:nowrap;}
+  .status-jump select{border:none;background:none;font-size:13px;font-weight:700;font-family:inherit;outline:none;cursor:pointer;color:var(--black);}
   .back-btn{display:none;}
   .empty-detail{color:var(--gray);font-size:13px;text-align:center;padding:60px 20px;border:1.5px dashed var(--border);border-radius:14px;}
 
@@ -591,6 +594,8 @@ const STATUS_LABEL_PR = {
   arrived:'입고완료', contacted:'연락완료', purchased:'구매완료', abandoned:'구매포기'
 };
 const TYPE_LABEL_PR = { unstocked:'미취급 상품', out_of_stock:'품절 상품' };
+/* 상품 예약의 정상 진행 순서. rejected(발주불가)·abandoned(구매포기)는 중간에 빠지는 갈래라 순서에 없습니다. */
+const PR_FLOW_ORDER = ['requested','approved','arrived','contacted','purchased'];
 
 function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -1190,9 +1195,11 @@ function prRowHtml(r){
   </div>`;
 }
 function prDetailHtml(r){
-  const canReview = (ME.role==='manager'||ME.role==='admin') && r.status==='requested';
+  /* 상태 변경은 전 직원이 할 수 있습니다. 매장에는 실장이 상주하지 않는 시간이 많아서
+     실장만 누를 수 있게 막아두면 접수 건이 '문의접수'에서 그대로 멈춰버립니다.
+     대신 누가 처리했는지(reviewed_by 등)를 항상 기록해서 나중에 확인할 수 있게 합니다. */
   let actions = '';
-  if(canReview){
+  if(r.status==='requested'){
     actions = `<button class="btn btn-primary" onclick="openReviewModal(${r.id})">검토하기 (발주가능/불가)</button>`;
   } else if(r.status==='approved'){
     actions = `<button class="btn btn-outline" onclick="markArrived(${r.id})">입고완료 처리</button>`;
@@ -1202,6 +1209,10 @@ function prDetailHtml(r){
     actions = `<button class="btn btn-primary" onclick="markPurchase(${r.id}, true)">구매완료</button>
                <button class="btn btn-danger" onclick="markPurchase(${r.id}, false)">구매포기</button>`;
   }
+  if(PR_FLOW_ORDER.indexOf(r.status) > 0){
+    actions += `<button class="btn btn-outline" onclick="revertPrStatus(${r.id})">이전 단계로</button>`;
+  }
+  actions += prStatusSelectHtml(r);
   const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
   return `<div class="detail-card">
     <div class="top-row">
@@ -1377,6 +1388,30 @@ async function submitContact(id){
   if(error){ toast('처리 실패: '+error.message); return; }
   closeModal(); toast('저장했습니다'); refreshProductList();
 }
+/* 상태 직접 변경 드롭다운 — 실무에서 순서대로 안 흘러가는 경우(이미 연락 끝났는데 입고 처리를 안 눌렀다든지)
+   한 번에 맞는 상태로 바꿀 수 있게 합니다. 잘못 누른 것도 여기서 바로 되돌릴 수 있습니다. */
+function prStatusSelectHtml(r){
+  const opts = Object.entries(STATUS_LABEL_PR)
+    .map(([k,v])=>`<option value="${k}" ${k===r.status?'selected':''}>${esc(v)}</option>`).join('');
+  return `<label class="status-jump"><span>상태 직접 변경</span>
+    <select onchange="setPrStatus(${r.id}, this.value)">${opts}</select></label>`;
+}
+async function setPrStatus(id, status){
+  /* 상품 예약 테이블에는 updated_by 컬럼이 없어서, 누가 바꿨는지는 기존 reviewed_by 칸에 남깁니다. */
+  const patch = { status, reviewed_by: ME.name, reviewed_at: new Date().toISOString() };
+  if(status==='purchased') patch.purchased_at = new Date().toISOString();
+  if(status==='arrived') patch.arrived_at = new Date().toISOString();
+  if(status==='contacted') patch.contacted_at = new Date().toISOString();
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('변경 실패: '+error.message); return; }
+  toast(`'${STATUS_LABEL_PR[status]}'(으)로 바꿨습니다`); refreshProductList();
+}
+async function revertPrStatus(id){
+  const r = PR_ITEMS.find(x=>String(x.id)===String(id)); if(!r) return;
+  const i = PR_FLOW_ORDER.indexOf(r.status);
+  if(i <= 0){ toast('이전 단계가 없습니다'); return; }
+  await setPrStatus(id, PR_FLOW_ORDER[i-1]);
+}
 async function markPurchase(id, purchased){
   const patch = purchased
     ? { status:'purchased', purchased_at: new Date().toISOString() }
@@ -1458,6 +1493,7 @@ function asDetailHtml(r){
     if(next) actions += `<button class="btn btn-primary" onclick="advanceAsStatus(${r.id})">${esc(next.label)} 처리</button>`;
   }
   if(idx>0) actions += `<button class="btn btn-outline" onclick="revertAsStatus(${r.id})">이전 단계로</button>`;
+  actions += asStatusSelectHtml(r);
   const contactLabel = r.contact_mode==='last4' ? '뒷 4자리만 수집' : '전체번호 수집';
   return `<div class="detail-card">
     <div class="top-row">
@@ -1478,6 +1514,19 @@ function asDetailHtml(r){
     ${detailPhotosHtml(r.photo_urls)}
     <div class="detail-actions">${actions}<button class="btn btn-outline btn-sm" onclick="openAddPhotoModal('as', ${r.id})">+ 사진 추가</button></div>
   </div>`;
+}
+/* AS도 마찬가지로 단계를 건너뛰거나 되돌려야 하는 경우가 있어 직접 변경을 열어둡니다.
+   제품 구분(본사/타사)에 맞는 단계만 보여줍니다. */
+function asStatusSelectHtml(r){
+  const flow = asFlow(r);
+  const opts = flow.map(f=>`<option value="${f.code}" ${f.code===r.status?'selected':''}>${esc(f.label)}</option>`).join('');
+  return `<label class="status-jump"><span>상태 직접 변경</span>
+    <select onchange="setAsStatus(${r.id}, this.value)">${opts}</select></label>`;
+}
+async function setAsStatus(id, status){
+  const { error } = await sb.from('resv_as_requests').update({ status, updated_by: ME.name }).eq('id', id);
+  if(error){ toast('변경 실패: '+error.message); return; }
+  toast(`'${ALL_STATUS_LABELS_AS[status]||status}'(으)로 바꿨습니다`); refreshAsList();
 }
 function renderAsDetail(){
   const item = AS_ITEMS.find(r=>String(r.id)===String(AS_SELECTED_ID));
