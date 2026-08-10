@@ -140,6 +140,8 @@
   .pr-reason b{font-weight:800;}
   .pr-reason-head{font-size:11px;font-weight:800;color:var(--gray);margin-bottom:4px;}
 
+  .setup-notice{background:#fffbe8;border:1.5px solid var(--yellow-dark);color:#5c4600;border-radius:10px;
+    padding:10px 14px;font-size:12.5px;font-weight:700;margin-bottom:10px;}
   .msub-title{font-size:13px;color:var(--gray);margin:-6px 0 12px;font-weight:600;}
   .status-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;margin-top:4px;}
   .status-chips .sch-label{font-size:11.5px;color:var(--gray);font-weight:800;margin-right:2px;}
@@ -423,6 +425,7 @@
           <button data-cat="hq">본사 제품</button>
           <button data-cat="other">타사 제품</button>
         </div>
+        <div id="as-check-notice"></div>
         <div id="as-month-bar" class="month-bar"></div>
         <div id="as-stage-strip"></div>
         <div class="toolbar">
@@ -1817,13 +1820,40 @@ function asRowHtml(r){
     </span>
   </div>`;
 }
+/* checked_at 컬럼이 아직 없으면(= as_checked_column.sql 미실행) 원인을 정확히 알려줍니다.
+   그냥 "처리 실패"만 뜨면 무엇을 해야 하는지 알 수 없어서요. */
+let AS_CHECK_SUPPORTED = null;
 async function toggleAsChecked(id, on){
   const patch = on ? { checked_at: new Date().toISOString(), checked_by: ME.name }
                    : { checked_at: null, checked_by: null };
   const { error } = await sb.from('resv_as_requests').update(patch).eq('id', id);
-  if(error){ toast('처리 실패: '+error.message); return; }
+  if(error){
+    if(/checked_at|checked_by/.test(error.message||'')){
+      AS_CHECK_SUPPORTED = false;
+      renderAsCheckNotice();
+      openModal(`
+        <h2>확인 체크 기능이 아직 켜지지 않았습니다</h2>
+        <p style="font-size:13px;color:var(--gray);line-height:1.8;">
+          이 기능을 쓰려면 데이터베이스에 칸 두 개(checked_at, checked_by)를 먼저 추가해야 합니다.<br>
+          전달드린 <b>as_checked_column.sql</b> 을 Supabase SQL Editor 새 탭에 붙여넣고 Run 한 번만 해주세요.<br>
+          실행 후 이 화면을 새로고침하면 바로 동작합니다.
+        </p>
+        <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">확인</button></div>
+      `);
+      return;
+    }
+    toast('처리 실패: '+error.message); return;
+  }
+  AS_CHECK_SUPPORTED = true;
   toast(on ? '확인 완료로 표시했습니다' : '확인을 해제했습니다');
   refreshAsList();
+}
+function renderAsCheckNotice(){
+  const el = document.getElementById('as-check-notice');
+  if(!el) return;
+  el.innerHTML = AS_CHECK_SUPPORTED === false
+    ? `<div class="setup-notice">확인 체크 기능이 아직 켜지지 않았습니다 — <b>as_checked_column.sql</b> 을 Supabase에서 한 번 실행해주세요.</div>`
+    : '';
 }
 function asPipelineHtml(r){
   const flow = asFlow(r);
