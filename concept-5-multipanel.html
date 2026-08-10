@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위베이프 예약관리 — 레이아웃 컨셉 5. 멀티패널 통합형</title>
+<style>
+:root{
+  --bg:#ffffff; --sidebar-bg:#fafafa; --card:#ffffff; --border:#eaeaec; --col-bg:#f7f7f8;
+  --text:#111; --sub:#8a8a90; --accent:#FFC800; --accent-ink:#111;
+  --radius:10px; --radius-sm:8px; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:#e9e9ec;}
+button{font-family:inherit;cursor:pointer;}
+
+.controlbar{position:sticky;top:0;z-index:50;background:#111;color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;}
+.controlbar h1{font-size:15px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;}
+.controlbar h1 .dot{width:9px;height:9px;background:var(--accent);border-radius:50%;}
+.device-picker{display:flex;gap:6px;}
+.device-picker button{padding:8px 14px;border-radius:8px;border:1.5px solid #444;background:#1c1c1f;color:#ccc;font-size:12.5px;font-weight:700;}
+.device-picker button.active{background:#fff;color:#111;border-color:#fff;}
+.concept-desc{max-width:1160px;margin:16px auto 0;padding:0 20px;font-size:13px;color:#444;}
+.concept-desc b{color:#111;}
+.concept-nav{max-width:1160px;margin:10px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;}
+.concept-nav a{font-size:12px;padding:6px 12px;border-radius:14px;background:#fff;border:1px solid #ddd;color:#555;text-decoration:none;font-weight:700;}
+.concept-nav a.current{background:#111;color:#FFC800;border-color:#111;}
+
+.stage-wrap{display:flex;justify-content:center;padding:20px;}
+.stage{width:100%;max-width:1160px;transition:max-width .25s ease;}
+.stage.mobile{max-width:390px;}
+.stage.mobile .device-chrome{border:10px solid #111;border-radius:34px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);position:relative;}
+.stage.mobile .device-chrome::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:20px;background:#111;border-radius:0 0 14px 14px;z-index:45;}
+.stage:not(.mobile) .device-chrome{border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.10);}
+
+.login-mini{background:#fff;padding:20px;border-bottom:1px solid var(--border);}
+.login-mini .title{font-weight:800;font-size:14px;margin-bottom:2px;}
+.login-mini .sub{font-size:11.5px;color:var(--sub);margin-bottom:12px;}
+.login-row{display:flex;gap:8px;align-items:center;}
+.login-row select{flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);}
+.pin-dots{display:flex;gap:7px;}
+.pin-dots span{width:9px;height:9px;border-radius:50%;border:2px solid #111;}
+.pin-dots span.filled{background:var(--accent);border-color:var(--accent);}
+
+.app-shell{display:flex;background:var(--bg);min-height:640px;position:relative;}
+.sidebar{width:180px;flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:16px 10px;display:flex;flex-direction:column;}
+.sidebar .brand{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;margin:2px 6px 18px;}
+.sidebar .brand .dot{width:7px;height:7px;background:var(--accent);border-radius:50%;}
+.sidebar nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+.sidebar nav button{text-align:left;padding:10px 11px;border-radius:8px;border:none;border-left:3px solid transparent;background:none;font-size:12.5px;font-weight:700;color:var(--sub);}
+.sidebar nav button.active{background:#fff;color:var(--text);border-left-color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.sidebar .who{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--border);font-size:11px;color:var(--sub);}
+.sidebar .who b{display:block;color:var(--text);font-size:12.5px;margin-bottom:2px;}
+.sidebar .who button{margin-top:8px;width:100%;padding:7px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:11px;color:#555;}
+
+.mobile-topbar{display:none;}
+.stage.mobile .mobile-topbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:#fff;}
+.stage.mobile .mobile-topbar button.hamburger{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:15px;}
+.stage.mobile .mobile-topbar .title{font-weight:800;font-size:13px;}
+.stage.mobile .sidebar{position:absolute;left:0;top:0;bottom:0;height:100%;z-index:40;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 12px rgba(0,0,0,.15);}
+.stage.mobile .sidebar.open{transform:translateX(0);}
+.drawer-overlay{display:none;}
+.stage.mobile .drawer-overlay.open{display:block;position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:35;}
+
+.main-area{flex:1;min-width:0;padding:14px;}
+
+/* ===== 멀티패널 (보드 + 우측 레일 동시 표시) ===== */
+.mp-layout{display:flex;gap:12px;align-items:flex-start;}
+.mp-primary{flex:1;min-width:0;}
+.mp-rail{width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;}
+.stage.mobile .mp-layout{display:block;}
+.stage.mobile .mp-rail{width:100%;margin-top:12px;}
+
+.rail-card{background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;box-shadow:var(--shadow);}
+.rail-card h4{margin:0 0 8px;font-size:11.5px;color:var(--sub);font-weight:700;}
+.rail-card input, .rail-card select{width:100%;padding:7px 8px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;margin-bottom:6px;}
+.rail-card .btn-primary{width:100%;background:var(--accent);color:var(--accent-ink);border:none;padding:8px;border-radius:7px;font-weight:800;font-size:11.5px;}
+.rail-card .rank-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 0;border-bottom:1px solid #f4f4f5;}
+.rail-card .rank-row:last-child{border-bottom:none;}
+.rail-card .donut-legend{display:flex;flex-direction:column;gap:4px;font-size:10.5px;margin-top:6px;}
+.rail-card .donut-legend span{display:flex;align-items:center;gap:5px;}
+.rail-card .donut-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;}
+.mini-bar{height:6px;border-radius:4px;background:#f2f2f3;overflow:hidden;margin:4px 0 8px;}
+.mini-bar div{height:100%;background:var(--accent);}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap;}
+.toolbar select{padding:7px 9px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;}
+
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:150px;gap:8px;overflow-x:auto;padding-bottom:6px;}
+.col{background:var(--col-bg);border-radius:var(--radius);padding:7px;}
+.col h3{font-size:10.5px;margin:2px 4px 7px;color:var(--sub);display:flex;justify-content:space-between;}
+.card{background:var(--card);border-radius:var(--radius-sm);padding:9px;margin-bottom:7px;box-shadow:var(--shadow);border:1px solid #eee;}
+.card .pname{font-weight:800;font-size:11.5px;margin-bottom:2px;}
+.card .meta{font-size:10px;color:var(--sub);line-height:1.5;}
+.card .tag{display:inline-block;font-size:9px;background:#f2f2f3;color:#555;border-radius:5px;padding:1.5px 5px;margin-top:5px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="controlbar">
+  <h1><span class="dot"></span>위베이프 예약관리 — 레이아웃 컨셉 5. 멀티패널 통합형</h1>
+  <div class="device-picker" id="device-picker">
+    <button data-d="pc" class="active">PC 화면</button>
+    <button data-d="mobile">모바일 화면</button>
+  </div>
+</div>
+
+<div class="concept-desc"><b>멀티패널 통합형</b> — 보드, 빠른등록, Top 랭킹, 발주 비율을 한 화면에 동시에 배치해서 탭을 왔다갔다 하지 않아도 됩니다. 문의가 많은 큰 매장에서 직원이 계속 새 문의를 등록하면서 동시에 현황도 봐야 하는 바쁜 카운터에 유리합니다. 대신 화면이 가장 빽빽합니다.</div>
+<div class="concept-nav">
+  <a href="concept-1-kanban.html">1. 칸반보드형</a>
+  <a href="concept-2-masterdetail.html">2. 목록+상세패널형</a>
+  <a href="concept-3-dashboard.html">3. 오늘의 할일 대시보드형</a>
+  <a href="concept-4-timeline.html">4. 타임라인형</a>
+  <a href="concept-5-multipanel.html" class="current">5. 멀티패널 통합형</a>
+</div>
+
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="device-chrome">
+
+      <div class="login-mini">
+        <div class="title">위베이프 예약관리</div>
+        <div class="sub">이름 선택 + PIN 4자리로 로그인</div>
+        <div class="login-row">
+          <select><option>이름 선택 — 김민지</option></select>
+          <div class="pin-dots"><span class="filled"></span><span class="filled"></span><span></span><span></span></div>
+        </div>
+      </div>
+
+      <div class="mobile-topbar">
+        <button class="hamburger" id="hamburger-btn">☰</button>
+        <span class="title">미취급 상품 예약</span>
+      </div>
+
+      <div class="app-shell">
+        <div class="drawer-overlay" id="drawer-overlay"></div>
+        <div class="sidebar" id="sidebar">
+          <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+          <nav>
+            <button class="active">미취급 상품 예약</button>
+            <button>AS 접수</button>
+            <button>예약 통계</button>
+            <button>AS 통계</button>
+            <button>설정</button>
+          </nav>
+          <div class="who">
+            <b>김민지</b>실장 · 연수점
+            <button>로그아웃</button>
+          </div>
+        </div>
+
+        <div class="main-area">
+          <div class="toolbar">
+            <select><option>전체 매장</option></select>
+          </div>
+
+          <div class="mp-layout">
+            <div class="mp-primary">
+              <div class="board">
+                <div class="col">
+                  <h3>문의접수 <span>2</span></h3>
+                  <div class="card"><div class="pname">RELX 파이 맥스</div><div class="meta">연수점 · 김OO</div><span class="tag">검토대기</span></div>
+                  <div class="card"><div class="pname">에일리 프리미엄</div><div class="meta">연수점 · 박OO</div><span class="tag">검토대기</span></div>
+                </div>
+                <div class="col">
+                  <h3>발주가능 <span>1</span></h3>
+                  <div class="card"><div class="pname">WAKA 쥬피터</div><div class="meta">구월로데오 · 이OO</div><span class="tag">발주가능</span></div>
+                </div>
+                <div class="col">
+                  <h3>입고완료 <span>1</span></h3>
+                  <div class="card"><div class="pname">RELX 크리에이터</div><div class="meta">논현점 · 최OO</div><span class="tag">연락필요</span></div>
+                </div>
+                <div class="col">
+                  <h3>구매완료 <span>1</span></h3>
+                  <div class="card"><div class="pname">아이코스 일루마</div><div class="meta">연수점 · 정OO</div><span class="tag">완료</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mp-rail">
+              <div class="rail-card">
+                <h4>빠른 등록</h4>
+                <input placeholder="제품명">
+                <input placeholder="고객 성함 / 연락처">
+                <button class="btn-primary">+ 등록</button>
+              </div>
+              <div class="rail-card">
+                <h4>미취급 상품 Top</h4>
+                <div class="rank-row"><span>RELX 파이 맥스</span><b>9</b></div>
+                <div class="rank-row"><span>WAKA 쥬피터</span><b>7</b></div>
+                <div class="rank-row"><span>에일리 프리미엄</span><b>5</b></div>
+              </div>
+              <div class="rail-card">
+                <h4>발주가능 비율</h4>
+                <div class="mini-bar"><div style="width:64%"></div></div>
+                <div class="donut-legend">
+                  <span><i style="background:#FFC800"></i>발주가능 64%</span>
+                  <span><i style="background:#e5484d"></i>발주불가 24%</span>
+                  <span><i style="background:#d0d0d5"></i>검토중 12%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('device-picker').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#device-picker button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('stage').classList.toggle('mobile', b.dataset.d === 'mobile');
+});
+document.getElementById('hamburger-btn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+});
+document.getElementById('drawer-overlay').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 1 — 매장 런처 (홈 그리드)</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --black:#111111; --white:#ffffff;
+    --bg:#F6F6F4; --border:#eceae4; --gray:#8a8a90; --red:#e5484d; --green:#2f9e58;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;}
+  .concept-badge{position:fixed;top:14px;left:14px;background:var(--black);color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;z-index:100;letter-spacing:.3px;}
+
+  /* ===== 홈: 매장 런처 그리드 ===== */
+  #home{max-width:1080px;margin:0 auto;padding:64px 28px 80px;}
+  .home-head{text-align:center;margin-bottom:44px;}
+  .home-head .greet{font-size:14px;color:var(--gray);font-weight:600;margin-bottom:6px;}
+  .home-head h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.5px;}
+  .home-head p{color:var(--gray);font-size:13.5px;margin-top:10px;}
+
+  .store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:16px;}
+  .store-tile{background:var(--white);border-radius:22px;padding:22px 20px;cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s;box-shadow:0 1px 3px rgba(0,0,0,.04), 0 8px 20px rgba(0,0,0,.03);position:relative;overflow:hidden;}
+  .store-tile:hover{transform:translateY(-4px);box-shadow:0 4px 10px rgba(0,0,0,.06), 0 16px 32px rgba(0,0,0,.08);}
+  .store-tile.mine{background:linear-gradient(155deg,#fff8de,#fff);border:1.5px solid var(--yellow);}
+  .store-tile .tile-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px;}
+  .store-tile .tag-mine{font-size:10px;font-weight:800;color:var(--yellow-dark);background:#fff3cc;padding:3px 8px;border-radius:20px;}
+  .store-tile .warn-dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(229,72,77,.15);}
+  .store-tile h3{font-size:16.5px;font-weight:800;margin:0 0 14px;letter-spacing:-.2px;}
+  .tile-stats{display:flex;gap:14px;}
+  .tile-stats .stat{flex:1;}
+  .tile-stats .stat .n{font-size:22px;font-weight:800;line-height:1;}
+  .tile-stats .stat.as .n{color:var(--black);}
+  .tile-stats .stat.as.overdue .n{color:var(--red);}
+  .tile-stats .stat .l{font-size:10.5px;color:var(--gray);font-weight:600;margin-top:4px;}
+  .tile-arrow{position:absolute;right:18px;bottom:18px;width:26px;height:26px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--gray);}
+
+  /* ===== 매장 상세 진입 화면 ===== */
+  #store-view{display:none;max-width:1080px;margin:0 auto;padding:0 28px 80px;}
+  .store-topbar{position:sticky;top:0;background:rgba(246,246,244,.85);backdrop-filter:blur(14px);padding:20px 0 16px;display:flex;align-items:center;justify-content:space-between;z-index:10;}
+  .back-btn{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--gray);font-size:13.5px;font-weight:700;cursor:pointer;padding:6px 4px;}
+  .back-btn:hover{color:var(--black);}
+  .store-topbar h2{font-size:24px;font-weight:800;margin:0;letter-spacing:-.4px;}
+  .store-switch-hint{font-size:12px;color:var(--gray);}
+
+  .seg{display:inline-flex;background:#ecebe7;border-radius:12px;padding:3px;margin:6px 0 22px;}
+  .seg button{border:none;background:none;padding:9px 20px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--gray);cursor:pointer;}
+  .seg button.active{background:var(--white);color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:26px;}
+  .stat-card{background:var(--white);border-radius:18px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .stat-card .label{font-size:12px;color:var(--gray);font-weight:600;}
+  .stat-card .value{font-size:28px;font-weight:800;margin-top:6px;letter-spacing:-.5px;}
+  .stat-card.warn .value{color:var(--red);}
+
+  .list{background:var(--white);border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .list .row{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);}
+  .list .row:last-child{border-bottom:none;}
+  .row .rtitle{font-weight:700;font-size:14px;}
+  .row .rmeta{font-size:12px;color:var(--gray);margin-top:3px;}
+  .pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;background:#f0f0ee;color:#555;}
+  .pill.overdue{background:#fdeaea;color:var(--red);}
+  .pill.done{background:#e8f6ec;color:var(--green);}
+
+  .empty-note{text-align:center;color:var(--gray);font-size:12.5px;padding:60px 0;}
+</style>
+</head>
+<body>
+<div class="concept-badge">시안 1 · 매장 런처 (홈 그리드)</div>
+
+<div id="home">
+  <div class="home-head">
+    <div class="greet">안녕하세요, 신재현 님</div>
+    <h1>오늘 어느 매장을 확인할까요?</h1>
+    <p>매장을 선택하면 그 매장의 예약·AS 현황으로 바로 들어갑니다. "전체 매장 합산" 화면은 없습니다.</p>
+  </div>
+  <div class="store-grid" id="store-grid"></div>
+</div>
+
+<div id="store-view">
+  <div class="store-topbar">
+    <div>
+      <button class="back-btn" onclick="goHome()">← 매장 선택으로</button>
+      <h2 id="sv-title">매장명</h2>
+    </div>
+    <div class="store-switch-hint">다른 매장은 언제든 "매장 선택"에서 바꿀 수 있어요</div>
+  </div>
+  <div class="seg">
+    <button class="active" data-t="as" onclick="setTab('as')">AS 접수</button>
+    <button data-t="pr" onclick="setTab('pr')">예약 현황</button>
+  </div>
+  <div id="sv-body"></div>
+</div>
+
+<script>
+const STORES = [
+  {id:1,name:'구월로데오',as:4,asOverdue:true,asMaxDays:5,pr:2,mine:true},
+  {id:2,name:'연수',as:2,asOverdue:false,asMaxDays:1,pr:1},
+  {id:3,name:'인천공항',as:1,asOverdue:false,asMaxDays:0,pr:0},
+  {id:4,name:'논현',as:3,asOverdue:true,asMaxDays:4,pr:3},
+  {id:5,name:'구월길병원',as:0,asOverdue:false,asMaxDays:0,pr:1},
+  {id:6,name:'계산',as:2,asOverdue:false,asMaxDays:2,pr:0},
+  {id:7,name:'부천상동',as:5,asOverdue:true,asMaxDays:7,pr:2},
+  {id:8,name:'부천중동',as:1,asOverdue:false,asMaxDays:1,pr:0},
+  {id:9,name:'을지로',as:0,asOverdue:false,asMaxDays:0,pr:1},
+  {id:10,name:'검단',as:2,asOverdue:false,asMaxDays:2,pr:0},
+];
+const AS_SAMPLE = [
+  {p:'그래피티C · 배터리[블랙]',c:'김고객',days:5,overdue:true,status:'제조사 발송·검사중'},
+  {p:'롤리팟-J · 블루',c:'이고객',days:2,overdue:false,status:'로데오점 접수확인'},
+  {p:'그래피티3 · 핑크',c:'박고객',days:0,overdue:false,status:'접수완료'},
+];
+const PR_SAMPLE = [
+  {p:'RELX 파이 맥스 머스캣',c:'최고객',status:'입고완료 · 연락대기'},
+  {p:'쥴 브리즈 민트',c:'정고객',status:'검토중'},
+];
+
+function renderGrid(){
+  document.getElementById('store-grid').innerHTML = STORES.map(s=>`
+    <div class="store-tile ${s.mine?'mine':''}" onclick="enterStore(${s.id})">
+      <div class="tile-top">
+        ${s.mine?'<span class="tag-mine">내 매장</span>':'<span></span>'}
+        ${s.asOverdue?'<span class="warn-dot"></span>':''}
+      </div>
+      <h3>${s.name}</h3>
+      <div class="tile-stats">
+        <div class="stat as ${s.asOverdue?'overdue':''}"><div class="n">${s.as}</div><div class="l">AS 처리중</div></div>
+        <div class="stat"><div class="n">${s.pr}</div><div class="l">예약 대기</div></div>
+      </div>
+      <div class="tile-arrow">→</div>
+    </div>
+  `).join('');
+}
+let currentTab = 'as';
+function enterStore(id){
+  const s = STORES.find(x=>x.id===id);
+  document.getElementById('home').style.display='none';
+  document.getElementById('store-view').style.display='block';
+  document.getElementById('sv-title').textContent = s.name;
+  setTab('as');
+}
+function goHome(){
+  document.getElementById('home').style.display='block';
+  document.getElementById('store-view').style.display='none';
+}
+function setTab(t){
+  currentTab = t;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
+  const body = document.getElementById('sv-body');
+  if(t==='as'){
+    body.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><div class="label">전체 AS</div><div class="value">4건</div></div>
+        <div class="stat-card warn"><div class="label">처리중 (최대 5일째)</div><div class="value">3건</div></div>
+        <div class="stat-card"><div class="label">처리완료</div><div class="value">1건</div></div>
+      </div>
+      <div class="list">${AS_SAMPLE.map(r=>`
+        <div class="row">
+          <div><div class="rtitle">${r.p}</div><div class="rmeta">${r.c} · ${r.status}</div></div>
+          <span class="pill ${r.overdue?'overdue':''}">${r.days===0?'오늘 접수':r.days+'일째'}</span>
+        </div>`).join('')}</div>`;
+  } else {
+    body.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><div class="label">전체 문의</div><div class="value">2건</div></div>
+        <div class="stat-card"><div class="label">입고완료</div><div class="value">1건</div></div>
+      </div>
+      <div class="list">${PR_SAMPLE.map(r=>`
+        <div class="row">
+          <div><div class="rtitle">${r.p}</div><div class="rmeta">${r.c}</div></div>
+          <span class="pill">${r.status}</span>
+        </div>`).join('')}</div>`;
+  }
+}
+renderGrid();
+</script>
+</body>
+</html>

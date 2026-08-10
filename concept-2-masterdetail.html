@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위베이프 예약관리 — 레이아웃 컨셉 2. 목록+상세패널형</title>
+<style>
+:root{
+  --bg:#ffffff; --sidebar-bg:#fafafa; --card:#ffffff; --border:#eaeaec; --col-bg:#f7f7f8;
+  --text:#111; --sub:#8a8a90; --accent:#FFC800; --accent-ink:#111;
+  --radius:10px; --radius-sm:8px; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:#e9e9ec;}
+button{font-family:inherit;cursor:pointer;}
+
+.controlbar{position:sticky;top:0;z-index:50;background:#111;color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;}
+.controlbar h1{font-size:15px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;}
+.controlbar h1 .dot{width:9px;height:9px;background:var(--accent);border-radius:50%;}
+.device-picker{display:flex;gap:6px;}
+.device-picker button{padding:8px 14px;border-radius:8px;border:1.5px solid #444;background:#1c1c1f;color:#ccc;font-size:12.5px;font-weight:700;}
+.device-picker button.active{background:#fff;color:#111;border-color:#fff;}
+.concept-desc{max-width:1160px;margin:16px auto 0;padding:0 20px;font-size:13px;color:#444;}
+.concept-desc b{color:#111;}
+.concept-nav{max-width:1160px;margin:10px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;}
+.concept-nav a{font-size:12px;padding:6px 12px;border-radius:14px;background:#fff;border:1px solid #ddd;color:#555;text-decoration:none;font-weight:700;}
+.concept-nav a.current{background:#111;color:#FFC800;border-color:#111;}
+
+.stage-wrap{display:flex;justify-content:center;padding:20px;}
+.stage{width:100%;max-width:1160px;transition:max-width .25s ease;}
+.stage.mobile{max-width:390px;}
+.stage.mobile .device-chrome{border:10px solid #111;border-radius:34px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);position:relative;}
+.stage.mobile .device-chrome::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:20px;background:#111;border-radius:0 0 14px 14px;z-index:45;}
+.stage:not(.mobile) .device-chrome{border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.10);}
+
+/* ===== 로그인 미리보기 ===== */
+.login-mini{background:#fff;padding:20px;border-bottom:1px solid var(--border);}
+.login-mini .title{font-weight:800;font-size:14px;margin-bottom:2px;}
+.login-mini .sub{font-size:11.5px;color:var(--sub);margin-bottom:12px;}
+.login-row{display:flex;gap:8px;align-items:center;}
+.login-row select{flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);}
+.pin-dots{display:flex;gap:7px;}
+.pin-dots span{width:9px;height:9px;border-radius:50%;border:2px solid #111;}
+.pin-dots span.filled{background:var(--accent);border-color:var(--accent);}
+
+/* ===== 좌측 메뉴 + 본문 레이아웃 (모든 컨셉 공통) ===== */
+.app-shell{display:flex;background:var(--bg);min-height:640px;position:relative;}
+.sidebar{width:196px;flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:16px 10px;display:flex;flex-direction:column;}
+.sidebar .brand{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;margin:2px 6px 18px;}
+.sidebar .brand .dot{width:7px;height:7px;background:var(--accent);border-radius:50%;}
+.sidebar nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+.sidebar nav button{text-align:left;padding:10px 11px;border-radius:8px;border:none;border-left:3px solid transparent;background:none;font-size:12.5px;font-weight:700;color:var(--sub);}
+.sidebar nav button.active{background:#fff;color:var(--text);border-left-color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.sidebar .who{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--border);font-size:11px;color:var(--sub);}
+.sidebar .who b{display:block;color:var(--text);font-size:12.5px;margin-bottom:2px;}
+.sidebar .who button{margin-top:8px;width:100%;padding:7px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:11px;color:#555;}
+
+.mobile-topbar{display:none;}
+.stage.mobile .mobile-topbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:#fff;}
+.stage.mobile .mobile-topbar button.hamburger{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:15px;}
+.stage.mobile .mobile-topbar .title{font-weight:800;font-size:13px;}
+.stage.mobile .sidebar{position:absolute;left:0;top:0;bottom:0;height:100%;z-index:40;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 12px rgba(0,0,0,.15);}
+.stage.mobile .sidebar.open{transform:translateX(0);}
+.drawer-overlay{display:none;}
+.stage.mobile .drawer-overlay.open{display:block;position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:35;}
+
+.main-area{flex:1;min-width:0;padding:16px;}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:8px;flex-wrap:wrap;}
+.toolbar select{padding:7px 9px;border-radius:8px;border:1.5px solid var(--border);font-size:12px;}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border:none;padding:9px 14px;border-radius:8px;font-weight:800;font-size:12.5px;}
+.btn-outline{background:#fff;border:1.5px solid var(--border);padding:6px 10px;border-radius:7px;font-size:11.5px;font-weight:700;color:#333;}
+.btn-danger{background:#fff0f0;color:#e5484d;border:1.5px solid #ffd6d6;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;}
+
+/* ===== 목록+상세패널 ===== */
+.md-layout{display:flex;gap:16px;align-items:flex-start;}
+.md-list{width:270px;flex-shrink:0;}
+.md-list .row{padding:10px 10px;border-radius:9px;margin-bottom:5px;border:1.5px solid transparent;background:#fff;}
+.md-list .row:hover{border-color:#eee;}
+.md-list .row.selected{background:#fffceb;border-color:var(--accent);}
+.md-list .row .top{display:flex;justify-content:space-between;align-items:center;}
+.md-list .row .pname{font-weight:700;font-size:12.5px;}
+.md-list .row .meta{font-size:10.5px;color:var(--sub);margin-top:3px;}
+.md-list .row .tag{font-size:9px;background:#f2f2f3;padding:2px 6px;border-radius:5px;color:#555;font-weight:700;}
+
+.md-detail{flex:1;min-width:0;}
+.detail-card{background:#fff;border:1px solid #eee;border-radius:14px;padding:20px;box-shadow:var(--shadow);}
+.detail-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.detail-card h2{margin:0 0 4px;font-size:17px;}
+.detail-card .status-badge{background:#111;color:var(--accent);font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;}
+.detail-card .field{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f2f2f3;font-size:12.5px;}
+.detail-card .field span:first-child{color:var(--sub);}
+.detail-card .field b{color:#222;font-weight:700;}
+.detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+.back-btn{display:none;}
+.stage.mobile .back-btn{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--sub);font-size:12px;font-weight:700;margin-bottom:10px;padding:0;}
+
+.stage.mobile .md-layout{display:block;}
+.stage.mobile .md-list{width:100%;}
+.stage.mobile .md-detail{display:none;}
+.stage.mobile #md-root.show-detail .md-list{display:none;}
+.stage.mobile #md-root.show-detail .md-detail{display:block;}
+</style>
+</head>
+<body>
+
+<div class="controlbar">
+  <h1><span class="dot"></span>위베이프 예약관리 — 레이아웃 컨셉 2. 목록+상세패널형</h1>
+  <div class="device-picker" id="device-picker">
+    <button data-d="pc" class="active">PC 화면</button>
+    <button data-d="mobile">모바일 화면</button>
+  </div>
+</div>
+
+<div class="concept-desc"><b>목록+상세패널형</b> — 메일함처럼 왼쪽은 문의 목록, 오른쪽은 선택한 건의 상세정보·처리 버튼이 바로 뜹니다. 실장님이 검토대기 건을 쭉 훑으며 하나씩 빠르게 승인/거절 처리할 때 특히 편합니다. 모바일에서는 목록 → 탭하면 상세화면으로 전환됩니다.</div>
+<div class="concept-nav">
+  <a href="concept-1-kanban.html">1. 칸반보드형</a>
+  <a href="concept-2-masterdetail.html" class="current">2. 목록+상세패널형</a>
+  <a href="concept-3-dashboard.html">3. 오늘의 할일 대시보드형</a>
+  <a href="concept-4-timeline.html">4. 타임라인형</a>
+  <a href="concept-5-multipanel.html">5. 멀티패널 통합형</a>
+</div>
+
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="device-chrome">
+
+      <div class="login-mini">
+        <div class="title">위베이프 예약관리</div>
+        <div class="sub">이름 선택 + PIN 4자리로 로그인</div>
+        <div class="login-row">
+          <select><option>이름 선택 — 김민지</option></select>
+          <div class="pin-dots"><span class="filled"></span><span class="filled"></span><span></span><span></span></div>
+        </div>
+      </div>
+
+      <div class="mobile-topbar">
+        <button class="hamburger" id="hamburger-btn">☰</button>
+        <span class="title">미취급 상품 예약</span>
+      </div>
+
+      <div class="app-shell">
+        <div class="drawer-overlay" id="drawer-overlay"></div>
+        <div class="sidebar" id="sidebar">
+          <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+          <nav>
+            <button class="active">미취급 상품 예약</button>
+            <button>AS 접수</button>
+            <button>예약 통계</button>
+            <button>AS 통계</button>
+            <button>설정</button>
+          </nav>
+          <div class="who">
+            <b>김민지</b>실장 · 연수점
+            <button>로그아웃</button>
+          </div>
+        </div>
+
+        <div class="main-area">
+          <div class="toolbar">
+            <select><option>전체 매장</option></select>
+            <button class="btn-primary">+ 새 문의 등록</button>
+          </div>
+
+          <div class="md-layout" id="md-root">
+            <div class="md-list">
+              <div class="row selected" data-idx="0">
+                <div class="top"><span class="pname">RELX 파이 맥스</span><span class="tag">검토대기</span></div>
+                <div class="meta">연수점 · 김OO · 8/8 10:20</div>
+              </div>
+              <div class="row" data-idx="1">
+                <div class="top"><span class="pname">에일리 프리미엄</span><span class="tag">검토대기</span></div>
+                <div class="meta">연수점 · 박OO · 8/8 09:41</div>
+              </div>
+              <div class="row" data-idx="2">
+                <div class="top"><span class="pname">WAKA 쥬피터</span><span class="tag">발주가능</span></div>
+                <div class="meta">구월로데오 · 이OO · 8/7 15:02</div>
+              </div>
+              <div class="row" data-idx="3">
+                <div class="top"><span class="pname">RELX 크리에이터</span><span class="tag">연락필요</span></div>
+                <div class="meta">논현점 · 최OO · 8/5 13:11</div>
+              </div>
+            </div>
+
+            <div class="md-detail">
+              <button class="back-btn" id="back-btn">← 목록으로</button>
+              <div class="detail-card">
+                <div class="top-row">
+                  <div>
+                    <h2>RELX 파이 맥스</h2>
+                    <div style="font-size:12px;color:#8a8a90;">연수점 · 접수 8/8 10:20 · 등록 김민지</div>
+                  </div>
+                  <span class="status-badge">검토대기</span>
+                </div>
+                <div class="field"><span>고객 성함</span><b>김OO</b></div>
+                <div class="field"><span>연락처</span><b>010-12**-5678</b></div>
+                <div class="field"><span>접수 사유</span><b>지인 추천</b></div>
+                <div class="field"><span>메모</span><b>-</b></div>
+                <div class="detail-actions">
+                  <button class="btn-danger">발주불가 처리</button>
+                  <button class="btn-primary">발주가능 처리</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('device-picker').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#device-picker button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('stage').classList.toggle('mobile', b.dataset.d === 'mobile');
+  document.getElementById('md-root').classList.remove('show-detail');
+});
+document.getElementById('hamburger-btn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+});
+document.getElementById('drawer-overlay').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+});
+document.querySelectorAll('.md-list .row').forEach(row=>{
+  row.addEventListener('click', ()=>{
+    document.querySelectorAll('.md-list .row').forEach(r=>r.classList.remove('selected'));
+    row.classList.add('selected');
+    document.getElementById('md-root').classList.add('show-detail');
+  });
+});
+document.getElementById('back-btn').addEventListener('click', ()=>{
+  document.getElementById('md-root').classList.remove('show-detail');
+});
+</script>
+</body>
+</html>

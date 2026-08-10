@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위베이프 고객 예약 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{
+    --yellow:#FFC800;
+    --yellow-dark:#E0AF00;
+    --black:#111111;
+    --white:#ffffff;
+    --bg:#f4f4f5;
+    --sidebar-bg:#fafafa;
+    --border:#e2e2e5;
+    --gray:#8a8a90;
+    --red:#e5484d;
+    --green:#2f9e44;
+    --blue:#1c7ed6;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ---------- 로그인 화면 ---------- */
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--black);}
+  .login-box{background:var(--white);border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  .login-box h1{font-size:20px;margin:0 0 4px;}
+  .login-box p{color:var(--gray);font-size:13px;margin:0 0 24px;}
+  .login-box label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px;}
+  .login-box select, .login-box input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;}
+  .pin-dots{display:flex;gap:10px;justify-content:center;margin:18px 0 6px;}
+  .pin-dots span{width:14px;height:14px;border-radius:50%;border:2px solid var(--black);}
+  .pin-dots span.filled{background:var(--yellow);border-color:var(--yellow-dark);}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+  .keypad button{padding:14px 0;font-size:18px;font-weight:600;border:1.5px solid var(--border);border-radius:10px;background:var(--white);}
+  .keypad button:active{background:var(--bg);}
+  #login-error{color:var(--red);font-size:13px;text-align:center;min-height:18px;margin-top:10px;}
+
+  /* ---------- 앱 레이아웃 (좌측 사이드바 + 본문) ---------- */
+  #app{display:none;}
+  .app-shell{display:flex;min-height:100vh;background:var(--white);position:relative;}
+
+  .sidebar{width:214px;flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+  .sidebar .brand{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;margin:2px 8px 20px;}
+  .sidebar .brand .dot{width:8px;height:8px;background:var(--yellow);border-radius:50%;}
+  .sidebar nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+  .sidebar nav button{text-align:left;padding:11px 12px;border-radius:8px;border:none;border-left:3px solid transparent;background:none;font-size:13px;font-weight:700;color:var(--gray);}
+  .sidebar nav button.active{background:#fff;color:var(--black);border-left-color:var(--yellow);box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .sidebar .who{margin-top:auto;padding:14px 10px 4px;border-top:1px solid var(--border);font-size:11.5px;color:var(--gray);}
+  .sidebar .who b{display:block;color:var(--black);font-size:13px;margin-bottom:2px;}
+  .sidebar .who button{margin-top:9px;width:100%;padding:8px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:11.5px;color:#555;}
+
+  .mobile-topbar{display:none;}
+  .drawer-overlay{display:none;}
+  @media (max-width:860px){
+    .mobile-topbar{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:30;}
+    .mobile-topbar button.hamburger{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:16px;flex-shrink:0;}
+    .mobile-topbar .title{font-weight:800;font-size:14px;}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;height:100%;z-index:40;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 16px rgba(0,0,0,.18);}
+    .sidebar.open{transform:translateX(0);}
+    .drawer-overlay.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35;}
+  }
+
+  .main-area{flex:1;min-width:0;padding:22px;max-width:1180px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .type-tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .type-tabs button{padding:8px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:700;color:#555;}
+  .type-tabs button.active{background:var(--black);color:var(--yellow);border-color:var(--black);}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .toolbar .filters{display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar select, .toolbar input[type=date]{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);}
+  .custom-range{display:inline-flex;align-items:center;gap:6px;}
+  .custom-range .rng-sep{color:var(--gray);font-size:12px;}
+  .btn{padding:10px 16px;border-radius:8px;border:none;font-weight:700;font-size:13px;}
+  .btn-primary{background:var(--yellow);color:var(--black);}
+  .btn-primary:hover{background:var(--yellow-dark);}
+  .btn-outline{background:var(--white);border:1.5px solid var(--border);color:var(--black);}
+  .btn-danger{background:#fff0f0;color:var(--red);border:1.5px solid #ffd6d6;}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:6px;}
+
+  /* ---------- 목록 + 상세패널 ---------- */
+  .md-layout{display:flex;gap:16px;align-items:flex-start;}
+  .md-list{width:300px;flex-shrink:0;}
+  .md-list .row{padding:11px 12px;border-radius:9px;margin-bottom:6px;border:1.5px solid var(--border);background:#fff;cursor:pointer;}
+  .md-list .row:hover{border-color:#ccc;}
+  .md-list .row.selected{background:#fffceb;border-color:var(--yellow-dark);}
+  .md-list .row .top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+  .md-list .row .pname{font-weight:700;font-size:13px;}
+  .md-list .row .meta{font-size:11px;color:var(--gray);margin-top:4px;line-height:1.5;}
+  .md-list .row .badges{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+  .tag{display:inline-block;font-size:10.5px;background:var(--bg);border-radius:5px;padding:2px 7px;color:#555;font-weight:700;}
+  .tag.type-unstocked{background:#eaf3ff;color:#1c5fae;}
+  .tag.type-oos{background:#fff2e0;color:#a9600c;}
+  .tag.status-rejected{background:#ffe3e3;color:#c92a2a;}
+  .tag.status-purchased{background:#e6f6ea;color:#217a35;}
+
+  .md-detail{flex:1;min-width:0;}
+  .detail-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:22px;}
+  .detail-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:10px;}
+  .detail-card h2{margin:0 0 4px;font-size:18px;}
+  .detail-card .sub{font-size:12.5px;color:var(--gray);}
+  .detail-card .badges{display:flex;gap:6px;flex-wrap:wrap;}
+  .detail-card .field{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f2f2f3;font-size:13px;gap:12px;}
+  .detail-card .field span:first-child{color:var(--gray);flex-shrink:0;}
+  .detail-card .field b{color:#222;font-weight:700;text-align:right;}
+  .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+  .back-btn{display:none;}
+  .empty-detail{color:var(--gray);font-size:13px;text-align:center;padding:60px 20px;border:1.5px dashed var(--border);border-radius:14px;}
+
+  @media (max-width:860px){
+    .main-area{padding:16px;}
+    .md-list{width:100%;}
+    .back-btn{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--gray);font-size:12.5px;font-weight:700;margin-bottom:10px;padding:0;}
+    .md-layout.stacked{display:block;}
+    .md-layout.stacked .md-detail{display:none;}
+    .md-layout.stacked.show-detail .md-list{display:none;}
+    .md-layout.stacked.show-detail .md-detail{display:block;}
+  }
+
+  /* ---------- 모달 ---------- */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:center;justify-content:center;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--white);border-radius:14px;padding:24px;width:420px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+  .modal h2{margin:0 0 16px;font-size:17px;}
+  .modal label{display:block;font-size:12.5px;font-weight:700;margin:12px 0 5px;color:#333;}
+  .modal input, .modal select, .modal textarea{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;}
+  .modal textarea{resize:vertical;min-height:60px;}
+  .modal .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+  .modal-actions button{flex:none;}
+  .type-toggle{display:flex;gap:8px;margin-top:4px;}
+  .type-toggle button{flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:700;color:#555;}
+  .type-toggle button.active{background:var(--black);color:var(--yellow);border-color:var(--black);}
+
+  /* ---------- 통계 ---------- */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px;}
+  .stat-card{background:var(--white);border-radius:12px;padding:16px;border:1px solid var(--border);}
+  .stat-card .label{font-size:12.5px;color:var(--gray);margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:800;}
+  .stat-card .sub{font-size:12px;color:var(--gray);margin-top:4px;}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-box{background:var(--white);border-radius:12px;padding:16px;border:1px solid var(--border);}
+  .chart-box h3{font-size:14px;margin:0 0 12px;}
+  .rank-list{list-style:none;padding:0;margin:0;}
+  .rank-list li{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);font-size:13.5px;}
+  .rank-list li .n{color:var(--gray);width:22px;display:inline-block;}
+  @media (max-width:800px){.chart-grid{grid-template-columns:1fr;}}
+
+  /* ---------- 사진 첨부 ---------- */
+  .photo-input-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .photo-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0;}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb .rm{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:11px;line-height:1;padding:0;}
+  .photo-add-btn{width:64px;height:64px;border-radius:8px;border:1.5px dashed var(--border);background:#fafafa;font-size:11px;color:var(--gray);display:flex;align-items:center;justify-content:center;text-align:center;flex-shrink:0;}
+  .photo-hint{font-size:11px;color:var(--gray);margin-top:5px;}
+
+  .detail-photos{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px;}
+  .detail-photos img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;}
+  .photo-lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:80;align-items:center;justify-content:center;}
+  .photo-lightbox.open{display:flex;}
+  .photo-lightbox img{max-width:92vw;max-height:88vh;border-radius:6px;}
+  .photo-lightbox .close-lb{position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:26px;}
+  .tag.has-photo{background:#f1f0ff;color:#5a4dbf;}
+
+  /* ---------- AS 제품 검색/선택 ---------- */
+  .as-search-results{max-height:240px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;margin-top:6px;background:#fff;}
+  .as-search-item{padding:10px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bg);}
+  .as-search-item:last-child{border-bottom:none;}
+  .as-search-item:hover{background:var(--bg);}
+  .as-picked-chip{background:#fffceb;border:1.5px solid var(--yellow-dark);border-radius:8px;padding:11px 12px;}
+  .as-picked-chip .pc-label{font-size:13.5px;font-weight:700;line-height:1.4;}
+  .as-picked-chip .pc-actions{display:flex;gap:12px;margin-top:8px;}
+  .as-link-btn{background:none;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .as-hint{font-size:11.5px;color:var(--gray);margin-top:5px;line-height:1.5;}
+
+  /* ---------- 파이프라인 스텝퍼 ---------- */
+  .pipeline-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-bottom:3px;}
+  .pipeline{display:flex;align-items:center;margin:6px 0 12px;}
+  .pipeline .node{width:9px;height:9px;border-radius:50%;background:var(--border);flex:none;}
+  .pipeline .node.done{background:var(--yellow-dark);}
+  .pipeline .node.current{background:var(--yellow-dark);box-shadow:0 0 0 4px rgba(224,175,0,.2);}
+  .pipeline .seg-line{flex:1;height:2px;background:var(--border);}
+  .pipeline .seg-line.done{background:var(--yellow-dark);}
+
+  /* ---------- 랭킹 바 카드 ---------- */
+  .rank-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
+  .rank-card .rank-card-title{font-size:13.5px;font-weight:800;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+  .rank-card .rank-card-title .total{font-size:11.5px;color:var(--gray);font-weight:600;}
+  .rank-bar-row{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
+  .rank-bar-no{width:16px;font-size:11.5px;font-weight:800;color:var(--gray);flex:none;}
+  .rank-bar-row:nth-child(1) .rank-bar-no{color:var(--yellow-dark);}
+  .rank-bar-wrap{flex:1;background:var(--bg);border-radius:6px;height:22px;overflow:hidden;position:relative;}
+  .rank-bar-fill{height:100%;background:#fff5cf;border-right:2px solid var(--yellow-dark);border-radius:6px 0 0 6px;}
+  .rank-bar-label{position:absolute;left:8px;top:0;bottom:0;display:flex;align-items:center;font-size:11.5px;color:#333;font-weight:600;}
+  .rank-bar-row.clickable{cursor:pointer;}
+  .rank-bar-row.clickable:hover .rank-bar-wrap{outline:1.5px solid var(--yellow-dark);}
+  .rank-case-wrap{margin:-3px 0 12px 25px;}
+  .rank-case-list{display:none;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px dashed var(--border);}
+  .rank-case-list.open{display:block;}
+  .rank-case-item{font-size:12px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .rank-case-item:last-child{border-bottom:none;}
+  .rank-case-item .rc-top{display:flex;justify-content:space-between;gap:8px;font-weight:700;}
+  .rank-case-item .rc-sub{color:var(--gray);margin-top:2px;line-height:1.5;}
+  .rank-bar-count{width:30px;text-align:right;font-size:11.5px;color:var(--gray);flex:none;}
+
+  .tag.overdue-tag{background:#ffe3e3;color:#c92a2a;}
+
+  /* ---------- 현재 매장 표시 바 (상품 예약 / AS 접수 화면 상단) ----------
+     매장 선택은 이제 로그인 직후 홈 화면(매장 런처)에서 하고, 각 목록 화면은 그 매장으로 고정됩니다. */
+  .current-store-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 15px;margin-bottom:14px;}
+  .current-store-bar span{font-size:12.5px;color:var(--gray);}
+  .current-store-bar span b{color:var(--black);font-size:14.5px;font-weight:800;margin-left:4px;}
+  .current-store-bar .change-store-btn{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:#555;cursor:pointer;}
+  .current-store-bar .change-store-btn:hover{border-color:var(--yellow-dark);color:var(--black);}
+
+  /* ---------- 홈 화면 (매장 런처) — 로그인 직후 매장 하나를 골라 바로 들어가는 화면 ---------- */
+  #home-grid{display:none;min-height:100vh;background:var(--bg);}
+  .home-wrap{max-width:1080px;margin:0 auto;padding:56px 24px 70px;}
+  .home-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:36px;}
+  .home-topbar .brand{font-size:13.5px;font-weight:800;}
+  .home-topbar .brand .dot{display:inline-block;width:7px;height:7px;background:var(--yellow);border-radius:50%;margin-right:6px;}
+  .home-topbar button{border:none;background:none;color:var(--gray);font-size:12.5px;font-weight:700;cursor:pointer;}
+  .home-head{text-align:center;margin-bottom:40px;}
+  .home-head .greet{font-size:13.5px;color:var(--gray);font-weight:600;margin-bottom:6px;}
+  .home-head h1{font-size:27px;font-weight:800;margin:0;letter-spacing:-.4px;}
+  .home-head p{color:var(--gray);font-size:13px;margin-top:10px;}
+  .store-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px;}
+  .store-tile{background:var(--white);border-radius:20px;padding:20px 18px;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative;}
+  .store-tile:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.08);}
+  .store-tile.mine{background:linear-gradient(155deg,#fff8de,#fff);border:1.5px solid var(--yellow-dark);}
+  .store-tile .tile-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;min-height:18px;}
+  .store-tile .tag-mine{font-size:10px;font-weight:800;color:var(--yellow-dark);background:#fff3cc;padding:3px 8px;border-radius:20px;}
+  .store-tile .warn-dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(229,72,77,.15);}
+  .store-tile h3{font-size:16px;font-weight:800;margin:0 0 12px;letter-spacing:-.2px;}
+  .store-tile .tile-stats{display:flex;gap:12px;}
+  .store-tile .tile-stats .stat .n{font-size:21px;font-weight:800;line-height:1;}
+  .store-tile .tile-stats .stat.warn .n{color:var(--red);}
+  .store-tile .tile-stats .stat .l{font-size:10.5px;color:var(--gray);font-weight:600;margin-top:4px;}
+
+  /* ---------- AS 등록 모달 — 매장 선택 강조 ---------- */
+  .store-select-box{background:#fffbe8;border:1.5px solid var(--yellow-dark);border-radius:10px;padding:11px 13px;margin-bottom:2px;}
+  .store-select-box label{margin-top:0 !important;}
+  .store-select-box select{font-size:15px;font-weight:700;}
+  .store-select-box .ssb-hint{font-size:11px;color:#8a7300;margin-top:5px;}
+
+  .empty{color:var(--gray);font-size:13px;padding:20px;text-align:center;}
+  .badge-role{font-size:11px;background:var(--yellow);color:var(--black);padding:2px 7px;border-radius:5px;font-weight:700;}
+  table.settings-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.settings-table th, table.settings-table td{padding:9px 8px;border-bottom:1px solid var(--bg);text-align:left;}
+  table.settings-table th{color:var(--gray);font-weight:600;font-size:12px;}
+  .section-title{font-size:15px;font-weight:800;margin:26px 0 10px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--black);color:var(--white);padding:11px 20px;border-radius:8px;font-size:13.5px;z-index:100;display:none;}
+</style>
+</head>
+<body>
+
+<!-- ================= 로그인 화면 ================= -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>위베이프 예약관리</h1>
+    <p>이름을 고르고 PIN 4자리를 입력하세요</p>
+
+    <label>직원 이름</label>
+    <select id="login-staff"><option value="">불러오는 중...</option></select>
+
+    <div class="pin-dots" id="pin-dots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="keypad" id="keypad"></div>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ================= 홈 (매장 런처) — 로그인 직후 매장을 골라 바로 들어갑니다 ================= -->
+<div id="home-grid">
+  <div class="home-wrap">
+    <div class="home-topbar">
+      <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+      <button id="home-logout-btn">로그아웃</button>
+    </div>
+    <div class="home-head">
+      <div class="greet" id="home-greet"></div>
+      <h1>오늘 어느 매장을 확인할까요?</h1>
+      <p>매장을 선택하면 그 매장의 예약·AS 화면으로 바로 들어갑니다. 다른 매장은 언제든 "매장 변경"으로 바꿀 수 있어요.</p>
+    </div>
+    <div class="store-tile-grid" id="store-tile-grid"></div>
+  </div>
+</div>
+
+<!-- ================= 메인 앱 ================= -->
+<div id="app">
+  <div class="mobile-topbar">
+    <button class="hamburger" id="hamburger-btn">☰</button>
+    <span class="title" id="mobile-title">상품 예약</span>
+  </div>
+
+  <div class="app-shell">
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+      <nav>
+        <button data-tab="product" class="active" data-title="상품 예약">상품 예약 (미취급·품절)</button>
+        <button data-tab="as" data-title="AS 접수">AS 접수</button>
+        <button data-tab="prstats" data-title="예약 통계">예약 통계</button>
+        <button data-tab="asstats" data-title="AS 통계">AS 통계</button>
+        <button data-tab="settings" data-title="설정">설정</button>
+      </nav>
+      <div class="who">
+        <span id="who-info"><b></b></span>
+        <button id="logout-btn">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="main-area">
+      <!-- ---------- 상품 예약 (미취급 + 품절) ---------- -->
+      <section class="view active" id="view-product">
+        <div class="current-store-bar"><span>현재 매장 <b id="pr-current-store-name">-</b></span><button class="change-store-btn" onclick="showHomeGrid()">매장 변경</button></div>
+        <div class="type-tabs" id="pr-type-tabs">
+          <button data-type="all" class="active">전체</button>
+          <button data-type="unstocked">미취급 상품</button>
+          <button data-type="out_of_stock">품절 상품</button>
+        </div>
+        <div class="toolbar">
+          <div class="filters">
+            <select id="pr-store-filter" style="display:none;"></select>
+            <select id="pr-status-filter">
+              <option value="all">전체 상태</option>
+              <option value="requested">문의접수(검토대기)</option>
+              <option value="approved">발주가능</option>
+              <option value="rejected">발주불가</option>
+              <option value="arrived">입고완료</option>
+              <option value="contacted">연락완료</option>
+              <option value="purchased">구매완료</option>
+              <option value="abandoned">구매포기</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="pr-new-btn">+ 새 등록</button>
+        </div>
+
+        <div class="md-layout stacked" id="pr-md-root">
+          <div class="md-list" id="pr-list"></div>
+          <div class="md-detail">
+            <button class="back-btn" id="pr-back-btn">← 목록으로</button>
+            <div id="pr-detail"><div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- AS 접수 ---------- -->
+      <section class="view" id="view-as">
+        <div class="current-store-bar"><span>현재 매장 <b id="as-current-store-name">-</b></span><button class="change-store-btn" onclick="showHomeGrid()">매장 변경</button></div>
+        <div class="type-tabs" id="as-category-tabs">
+          <button data-cat="all" class="active">전체</button>
+          <button data-cat="hq">본사 제품</button>
+          <button data-cat="other">타사 제품</button>
+        </div>
+        <div class="toolbar">
+          <div class="filters">
+            <select id="as-store-filter" style="display:none;"></select>
+            <select id="as-status-filter">
+              <option value="all">전체 상태</option>
+              <option value="pending">처리중</option>
+              <option value="done">완료</option>
+            </select>
+            <input id="as-q-filter" type="text" placeholder="고객명 / 등록자 검색" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+          </div>
+          <button class="btn btn-primary" id="as-new-btn">+ 새 AS 접수</button>
+        </div>
+
+        <div class="md-layout stacked" id="as-md-root">
+          <div class="md-list" id="as-list"></div>
+          <div class="md-detail">
+            <button class="back-btn" id="as-back-btn">← 목록으로</button>
+            <div id="as-detail"><div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 예약 통계 (미취급 + 품절) ---------- -->
+      <section class="view" id="view-prstats">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="pr-stat-store-filter"><option value="all">전체 매장</option></select>
+            <select id="pr-stat-type-filter">
+              <option value="all">전체 유형</option>
+              <option value="unstocked">미취급 상품</option>
+              <option value="out_of_stock">품절 상품</option>
+            </select>
+            <select id="pr-stat-month"><option value="all">전체 월</option></select>
+            <select id="pr-stat-period">
+              <option value="7">최근 7일</option>
+              <option value="30" selected>최근 30일</option>
+              <option value="90">최근 90일</option>
+              <option value="custom">기간 직접 설정</option>
+              <option value="all">전체 기간</option>
+            </select>
+            <span class="custom-range" id="pr-stat-custom-range" style="display:none;">
+              <input type="date" id="pr-stat-from"><span class="rng-sep">~</span><input type="date" id="pr-stat-to">
+            </span>
+          </div>
+          <div class="photo-hint" style="margin-top:6px;">월을 선택하면 등록일 기준 해당 월만 보고, "전체 월"일 때만 옆의 기간 필터(최근 N일 · 직접 설정)가 적용됩니다.</div>
+        </div>
+
+        <div class="stat-grid" id="pr-stat-cards"></div>
+
+        <div class="chart-grid">
+          <div class="chart-box">
+            <h3>문의 Top 10 (많이 찾는 순, 발주 여부 무관)</h3>
+            <ol class="rank-list" id="rank-product"></ol>
+          </div>
+          <div class="chart-box">
+            <h3>접수 사유별 통계</h3>
+            <canvas id="chart-reason-product" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>발주 가능 / 불가 비율</h3>
+            <canvas id="chart-orderable" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>매장별 문의 건수 (전체 매장 기준 비교)</h3>
+            <canvas id="chart-store-product" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>미취급 / 품절 유형별 건수</h3>
+            <canvas id="chart-type-product" height="220"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- AS 통계 ---------- -->
+      <section class="view" id="view-asstats">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="as-stat-store-filter"><option value="all">전체 매장</option></select>
+            <select id="as-stat-category-filter">
+              <option value="all">전체 제품군</option>
+              <option value="hq">본사 제품</option>
+              <option value="other">타사 제품</option>
+            </select>
+            <select id="as-stat-month"><option value="all">전체 월</option></select>
+            <select id="as-stat-period">
+              <option value="7">최근 7일</option>
+              <option value="30">최근 30일</option>
+              <option value="90">최근 90일</option>
+              <option value="custom">기간 직접 설정</option>
+              <option value="all" selected>전체 기간</option>
+            </select>
+            <span class="custom-range" id="as-stat-custom-range" style="display:none;">
+              <input type="date" id="as-stat-from"><span class="rng-sep">~</span><input type="date" id="as-stat-to">
+            </span>
+          </div>
+          <div class="photo-hint" style="margin-top:6px;">월을 선택하면 접수일(월별) 기준으로 보고, "전체 월"일 때만 옆의 기간 필터(최근 N일 · 직접 설정)가 적용됩니다. 기간은 모두 실제 접수일(received_date) 기준입니다.</div>
+        </div>
+
+        <div class="stat-grid" id="as-stat-cards"></div>
+
+        <div class="rank-card">
+          <div class="rank-card-title"><span>중복 증상 TOP — 같은 불량 사유가 많이 겹치는 순 (클릭하면 상세 사례)</span><span class="total" id="as-symptom-total"></span></div>
+          <div id="as-symptom-rank"></div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-box">
+            <h3>AS 접수 제품 Top 10 (건수 기준)</h3>
+            <ol class="rank-list" id="rank-as-device"></ol>
+          </div>
+          <div class="chart-box">
+            <h3>매장별 AS 접수 건수 (전체 매장 기준 비교)</h3>
+            <canvas id="chart-store-as" height="220"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 설정 ---------- -->
+      <section class="view" id="view-settings">
+        <div id="settings-guard" class="empty">실장님/관리자만 접근할 수 있는 화면입니다.</div>
+        <div id="settings-body" style="display:none;">
+          <div class="section-title">직원 관리</div>
+          <table class="settings-table" id="staff-table"><thead><tr><th>이름</th><th>권한</th><th>담당매장</th><th>상태</th><th></th></tr></thead><tbody></tbody></table>
+          <button class="btn btn-outline btn-sm" id="staff-add-btn" style="margin-top:10px;">+ 직원 추가</button>
+
+          <div class="section-title">접수 사유 관리 — 상품 예약(미취급·품절)</div>
+          <table class="settings-table" id="reason-pr-table"><thead><tr><th>사유</th><th>상태</th><th></th></tr></thead><tbody></tbody></table>
+          <button class="btn btn-outline btn-sm" id="reason-pr-add-btn" style="margin-top:10px;">+ 사유 추가</button>
+
+          <div class="section-title">접수 사유 관리 — AS 접수</div>
+          <table class="settings-table" id="reason-as-table"><thead><tr><th>사유</th><th>상태</th><th></th></tr></thead><tbody></tbody></table>
+          <button class="btn btn-outline btn-sm" id="reason-as-add-btn" style="margin-top:10px;">+ 사유 추가</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 모달 컨테이너 (JS가 채워넣음) ================= -->
+<div class="overlay" id="modal-overlay"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
+<div class="photo-lightbox" id="photo-lightbox" onclick="closeLightbox()">
+  <button class="close-lb" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+</div>
+
+<script>
+/* =========================================================
+   설정 — 여기에 실제 Supabase 프로젝트 정보를 넣으세요.
+   Supabase 대시보드 > Settings > API 에서 확인 가능
+   기존 POS와 같은 프로젝트 값을 그대로 쓰면 됩니다.
+   ========================================================= */
+const SUPABASE_URL = 'https://jpxiyfwljxnraosleylg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_D7Bsq7P3t2ug6uG0oFW8hA_zsbviCMR';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------------- 전역 상태 ---------------- */
+let ME = null;            // {id, name, role, store_id}
+let CURRENT_STORE_ID = null; // 홈 화면(매장 런처)에서 고른, 지금 보고 있는 매장
+let STORES = [];          // [{id,name}]
+let REASONS = {product_request:[], as:[]};
+let pinBuffer = '';
+
+let PR_ITEMS = [];
+let PR_SELECTED_ID = null;
+let PR_TYPE_FILTER = 'all';
+
+let AS_ITEMS = [];
+let AS_ITEMS_RAW = [];
+let AS_SELECTED_ID = null;
+let AS_NEW_CATEGORY = 'hq';
+let AS_PICKED_PRODUCT = null;
+
+let PENDING_PHOTOS = []; // [{blob, url}] — 등록 모달에서 아직 업로드 전인 사진들
+const PHOTO_BUCKET = 'resv-photos';
+const PHOTO_MAX = 5;
+
+const STATUS_LABEL_PR = {
+  requested:'문의접수', rejected:'발주불가', approved:'발주가능',
+  arrived:'입고완료', contacted:'연락완료', purchased:'구매완료', abandoned:'구매포기'
+};
+const TYPE_LABEL_PR = { unstocked:'미취급 상품', out_of_stock:'품절 상품' };
+
+function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* =========================================================
+   AS 접수 — 본사 제품 카탈로그 (실제 취급 제품 기준)
+   ========================================================= */
+const AS_CATEGORY_LABEL = { hq:'본사 제품', other:'타사 제품' };
+let AS_CATEGORY_FILTER = 'all';
+
+const PRODUCTS = {"colorOnly": [{"name": "(일회용) 릴렉스 인피니티2", "colors": ["블루", "연그레이", "진그레이", "블랙"]}, {"name": "(기기) 릴렉스 프라임", "colors": ["실버", "블랙"]}, {"name": "(기기) 버블몬 롤리팟-M", "colors": ["롤리 그린", "롤리 블루", "롤리 핑크", "윈터 블루", "할로윈 블랙", "실버", "블랙"]}, {"name": "(기기) 버블몬 그래피티3", "colors": ["크림 베이지", "핑크", "퍼플", "블랙", "네이비 블루"]}, {"name": "(기기) 버블몬 그래피티3 (NEW)", "colors": ["오로라 골드", "골드 러쉬", "사파이어 블루", "블랙"]}, {"name": "(기기) 버블몬 롤리팟-J", "colors": ["그린", "옐로우", "블루", "핑크", "블랙"]}, {"name": "(기기) 버블몬 롤리팟-J (NEW)", "colors": ["파스텔 블랙", "파스텔 그린", "파스텔 핑크", "파스텔 옐로우", "파스텔 블루"]}, {"name": "(기기) 버블몬 알파원", "colors": []}], "typeSelect": [{"name": "(일회용) 버블몬 그래피티2", "types": {"배터리": ["그린", "레드", "블랙", "블루", "옐로우", "핑크", "화이트"], "파드": ["딸기요거트", "레몬에이드", "마이애미민트", "망고", "블랙커런트민트", "블루라즈", "블루베리체리", "샤인머스켓", "아쿠아", "알포프레쉬", "워터멜론", "워터멜론블루베리", "파인애플애플", "피나콜라다", "피치망고", "피치아이스", "[2NIC]그래피티2녹두단팥", "[2NIC]그래피티2수박아이스", "[2NIC]그래피티2아이스용정차", "[2NIC]그래피티2우유아이스바", "[2NIC]그래피티2청포도"]}}, {"name": "(일회용) 버블몬 그래피티C", "types": {"배터리": ["미러에디션 [그린]", "미러에디션 [블랙]", "미러에디션 [블루]", "미러에디션 [옐로우]", "미러에디션 [핑크]", "배터리 [그린]", "배터리 [블랙]", "배터리 [블루]", "배터리 [옐로우]", "배터리 [핑크]"], "파드": ["딸기요거트", "레몬에이드", "마이애미민트", "망고", "무향", "블랙커런트민트", "블루라즈", "블루베리체리", "샤인머스켓", "세븐토바코", "씨솔트레몬", "아쿠아", "알포프레쉬", "워터멜론", "워터멜론블루베리", "파인애플애플", "피나콜라다", "피치망고", "피치아이스", "[2NIC] 그래피티C 녹두단팥", "[2NIC] 그래피티C 수박아이스", "[2NIC] 그래피티C 아이스용정차", "[2NIC] 그래피티C 우유아이스바", "[2NIC] 그래피티C 청포도", "[3NIC] 그래피티C 그린그레이프", "[3NIC] 그래피티C 더블애플", "[3NIC] 그래피티C 딸기요거트", "[3NIC] 그래피티C 마이애미민트", "[3NIC] 그래피티C 망고아이스", "[3NIC] 그래피티C 아쿠아", "[3NIC] 그래피티C 자스민 티", "[3NIC] 그래피티C 쿨민트", "[3NIC] 그래피티C 피치아이스", "[3NIC] 그래피티C 핑크레몬에이드"]}}], "singleSelect": ["(일회용) [2NIC] 릴렉스 디바 미네랄 워터", "(일회용) [2NIC] 릴렉스 디바 콜라 아이스", "(일회용) 릴렉스 디바 스트로베리 패션후르츠", "(일회용) 릴렉스 디바 프레쉬 그레이프", "(일회용) [2NIC] 릴렉스 포켓 녹두", "(일회용) [2NIC] 릴렉스 포켓 수박", "(일회용) [2NIC] 릴렉스 포켓 용정차", "(일회용) [2NIC] 릴렉스 포켓 포레스트베리", "(일회용) [2NIC] 릴렉스 프로2 딸기슬러쉬", "(일회용) [2NIC] 릴렉스 프로2 레몬라임", "(일회용) [2NIC] 릴렉스 프로2 믹스베리", "(일회용) [2NIC] 릴렉스 프로2 수박", "(일회용) [2NIC] 릴렉스 프로2 아이스버그크리스털", "(일회용) [2NIC] 릴렉스 프로2 아이스용정차", "(일회용) [2NIC] 릴렉스 프로2 우유아이스바", "(일회용) [2NIC] 릴렉스 프로2 청포도", "(일회용) [2NIC] 릴렉스 프로2 콜라", "(일회용) [2NIC] 릴렉스 프로2 파인애플", "(일회용) [2NIC] 릴렉스 프로2 포도", "(일회용) [2NIC] 릴렉스 프로2 프레쉬민트", "(일회용) [3NIC] PA15 그린그레이프", "(일회용) [3NIC] PA15 더블애플", "(일회용) [3NIC] PA15 딸기요거트", "(일회용) [3NIC] PA15 마이애미민트", "(일회용) [3NIC] PA15 망고아이스", "(일회용) [3NIC] PA15 아쿠아", "(일회용) [3NIC] PA15 자스민 티", "(일회용) [3NIC] PA15 쿨민트", "(일회용) [3NIC] PA15 피치아이스", "(일회용) [3NIC] PA15 핑크레몬에이드", "(일회용) 릴렉스 더블 그린망고", "(일회용) 릴렉스 더블 레몬라임", "(일회용) 릴렉스 더블 블루베리", "(일회용) 릴렉스 더블 피치", "(일회용) 릴렉스 에이스 라이트토바코", "(일회용) 릴렉스 에이스 알로에포도", "(일회용) 릴렉스 에이스 우롱차", "(일회용) 릴렉스 에이스 자스민녹차", "(일회용) 릴렉스 에이스 클래식토바코", "(일회용) 릴렉스 에이스 프레쉬민트", "(일회용) 릴렉스 에이스 홍차", "(일회용) 릴렉스 프로2 녹두", "(일회용) 릴렉스 프로2 더스키 쿨", "(일회용) 릴렉스 프로2 딥퍼플", "(일회용) 릴렉스 프로2 수박", "(일회용) 릴렉스 프로2 아이스버그 크리스털", "(일회용) 릴렉스 프로2 아이스블래스트", "(일회용) 릴렉스 프로2 우롱차", "(일회용) 릴렉스 프로2 콜라", "(일회용) 릴렉스 프로2 쿠반리프", "(일회용) 릴렉스 프로2 타로아이스크림", "(일회용) 릴렉스 프로2 파인애플", "(일회용) 릴렉스 프로2 포도", "(일회용) 릴렉스 프로2 프레쉬민트", "(일회용) 릴렉스 후노즈 더블민트", "(일회용) 릴렉스 후노즈 아카시아민트", "(일회용) 버블몬 게임체인저 PA15 리치메로", "(일회용) 버블몬 게임체인저 PA15 멘솔", "(일회용) 버블몬 게임체인저 PA15 쇼킹애플", "(일회용) 버블몬 게임체인저 PA15 스위티피치", "(일회용) 버블몬 게임체인저 PA15 아이스피어", "(일회용) 버블몬 게임체인저 PA15 아쿠아", "(일회용) 버블몬 게임체인저 PA15 알포", "(일회용) 버블몬 게임체인저 PA15 쿨워터멜론", "(일회용) 버블몬 게임체인저 PA22 리치메로", "(일회용) 버블몬 게임체인저 PA22 쇼킹애플", "(일회용) 버블몬 게임체인저 PA22 아이스피어", "(일회용) 버블몬 게임체인저 PA22 아쿠아", "(일회용) 버블몬 게임체인저 PA22 쿨워터멜론", "(일회용) 버블몬 그래피티 레몬에이드", "(일회용) 버블몬 그래피티 망고쥬스", "(일회용) 버블몬 그래피티 몬스터파워", "(일회용) 버블몬 그래피티 민트아이스", "(일회용) 버블몬 그래피티 블랙커런트민트", "(일회용) 버블몬 그래피티 아이스툰드라베리", "(일회용) 버블몬 그래피티2 [원킷] 딸기요거트", "(일회용) 버블몬 그래피티2 [원킷] 레몬에이드", "(일회용) 버블몬 그래피티2 [원킷] 블랙커런트", "(일회용) 버블몬 그래피티2 [원킷] 블루라즈", "(일회용) 버블몬 그래피티2 [원킷] 블루베리체리", "(일회용) 버블몬 그래피티2 [원킷] 아쿠아", "(일회용) 버블몬 그래피티2 [원킷] 알포프레쉬", "(일회용) 버블몬 그래피티2 [원킷] 워터멜론", "(일회용) 버블몬 그래피티2 [원킷] 워터멜론블루베리", "(일회용) 버블몬 그래피티2 [원킷] 파인애플", "(일회용) 버블몬 그래피티2 [원킷] 피치망고", "(일회용) 버블몬 그래피티2 [원킷] 피치아이스", "(일회용) 버블몬 그래피티2 [원킷] 허니피나콜라다", "(일회용) 버블몬 비어 알포 [19.8MG]", "(일회용) 버블몬 비어 타박", "(일회용) 와카 PA10000 바나나", "(일회용) 와카 PA10000 수박리치", "(일회용) 와카 PA10000 이온음료", "(일회용) 와카 PA10000 자스민녹차", "(일회용) 와카 PA10000 피치아이스", "(일회용) 와카 PA20000 말차프라페아이스", "(일회용) 와카 PA20000 수박", "(일회용) 와카 PA20000 알로에포도", "(일회용) 와카 PA20000 이온음료", "(일회용) 와카 PA20000 피치", "(일회용) 와카 버스트 감귤민트", "(일회용) 와카 버스트 구아바패션후르츠", "(일회용) 와카 버스트 라임스파클", "(일회용) 와카 버스트 멘솔", "(일회용) 와카 버스트 사워애플", "(일회용) 와카 버스트 씨솔트레몬", "(일회용) 와카 버스트 알로에포도", "(일회용) 와카 버스트 애플피치", "(일회용) 와카 버스트 자몽라임", "(일회용) 와카 버스트 칼피스", "(일회용) 와카 버스트 콜라", "(일회용) 와카 버스트 트로피칼썬샤인", "(일회용) 와카 버스트 포도", "(일회용) 와카 버스트 피치소다", "(일회용) 와카 쥬피터 멘솔", "(일회용) 와카 쥬피터 사쿠라그레이프", "(일회용) 와카 쥬피터 샤인머스캣", "(일회용) 와카 쥬피터 씨솔트레몬", "(일회용) 와카 쥬피터 칼피스", "(일회용) 와카 쥬피터 콜라", "(파츠) 릴렉스 에어파우치 민트", "(파츠) 릴렉스 에어파우치 콜라", "(파츠) 릴렉스 에어파우치 포도"], "bundled": {"name": "(일회용) 릴렉스 크리에이터", "options": ["(일회용) 릴렉스 크리에이터 [배터리]", "(일회용) 릴렉스 크리에이터 프로 [배터리]", "(일회용) [2NIC] 릴렉스 크리에이터 딸기슬러쉬", "(일회용) [2NIC] 릴렉스 크리에이터 피치망고수박", "(일회용) 릴렉스 크리에이터 라임스파클", "(일회용) 릴렉스 크리에이터 바나나카페라떼", "(일회용) 릴렉스 크리에이터 사쿠라그레이프", "(일회용) 릴렉스 크리에이터 샤인머스캣", "(일회용) 릴렉스 크리에이터 씨솔트레몬", "(일회용) 릴렉스 크리에이터 애플피치", "(일회용) 릴렉스 크리에이터 자몽패션", "(일회용) 릴렉스 크리에이터 콜라", "(일회용) 릴렉스 크리에이터 트로피칼썬샤인", "(일회용) 릴렉스 크리에이터 파인애플레몬", "(일회용) 릴렉스 크리에이터 프레쉬민트"]}};
+
+function buildFlatProducts(){
+  const list = [];
+  PRODUCTS.colorOnly.forEach(p=>{
+    if(p.colors.length===0){
+      list.push({family:p.name, type:"", option:"", label:p.name, freeOption:true});
+    } else {
+      p.colors.forEach(c=> list.push({family:p.name, type:"", option:c, label:`${p.name} · ${c}`}));
+    }
+  });
+  PRODUCTS.typeSelect.forEach(p=>{
+    Object.keys(p.types).forEach(t=>{
+      p.types[t].forEach(o=> list.push({family:p.name, type:t, option:o, label:`${p.name} · ${t} · ${o}`}));
+    });
+  });
+  PRODUCTS.singleSelect.forEach(n=> list.push({family:n, type:"", option:"", label:n}));
+  PRODUCTS.bundled.options.forEach(o=> list.push({family:PRODUCTS.bundled.name, type:"", option:o, label:`${PRODUCTS.bundled.name} · ${o}`}));
+  return list;
+}
+const FLAT_PRODUCTS = buildFlatProducts();
+
+function normalizeSearch(s){ return (s||"").toLowerCase().replace(/[\s·\-_/()\[\]]+/g,""); }
+function fuzzyScore(query, text){
+  const q = normalizeSearch(query), t = normalizeSearch(text);
+  if(!q) return 0;
+  const idx = t.indexOf(q);
+  if(idx>=0) return idx;
+  let ti=0, first=-1, last=-1;
+  for(let qi=0; qi<q.length; qi++){
+    const found = t.indexOf(q[qi], ti);
+    if(found<0) return null;
+    if(first<0) first=found;
+    last=found; ti=found+1;
+  }
+  return 1000 + (last-first);
+}
+function searchProducts(query){
+  if(!query) return [];
+  const scored = FLAT_PRODUCTS.map(p=>({p, s:fuzzyScore(query, p.label)})).filter(x=>x.s!==null);
+  scored.sort((a,b)=>a.s-b.s);
+  return scored.slice(0,30).map(x=>x.p);
+}
+
+/* 2026-08 실제 5·6·7월 A/S 접수 데이터(월간 불량 분석보고서)를 표준화한 증상 목록으로 재정리.
+   기기류(그래피티3·롤리팟-J)와 배터리(그래피티2·C)는 실제 데이터상 증상 패턴이 거의 동일해서 하나로 통합했고,
+   파드는 누수·맛 관련 증상이 따로 있어 별도 목록으로 유지합니다. 빈도 높은 순으로 정렬. */
+const DEFECT_REASONS = {
+  device: ["에어홀·고정핀 탈락","작동·전원 불량","인식·접촉 불량","충전·배터리 불량","표시창·잔량 표시 불량","자석 탈락·이상","외관·파손","에어홀·고정핀 파손","결합·규격 불량","흡입·센서 불량","전류 이상","초기불량","기타"],
+  pod: ["인식·접촉 불량","작동·전원 불량","표시창·잔량 표시 불량","누수","흡입·센서 불량","맛·액상 이상","자석 탈락·이상","외관·파손","초기불량","탄맛","결합·규격 불량","기타"]
+};
+const DEVICE_TRACKED_NAMES = ["(기기) 버블몬 그래피티3","(기기) 버블몬 그래피티3 (NEW)","(기기) 버블몬 롤리팟-J","(기기) 버블몬 롤리팟-J (NEW)"];
+const TYPESELECT_TRACKED_NAMES = ["(일회용) 버블몬 그래피티2","(일회용) 버블몬 그래피티C"];
+
+function trackedReasonList(productName, type){
+  if(DEVICE_TRACKED_NAMES.includes(productName)) return DEFECT_REASONS.device;
+  if(TYPESELECT_TRACKED_NAMES.includes(productName)){
+    if(type==="배터리") return DEFECT_REASONS.device;
+    if(type==="파드") return DEFECT_REASONS.pod;
+  }
+  return null;
+}
+function reportKeyOf(productName, type){
+  let base = productName.replace("(기기) 버블몬 ","").replace("(일회용) 버블몬 ","").replace(" (NEW)","");
+  if(DEVICE_TRACKED_NAMES.includes(productName)){
+    const model = productName.includes("(NEW)") ? "신모델" : "구모델";
+    return `${base} [${model}]`;
+  }
+  if(TYPESELECT_TRACKED_NAMES.includes(productName)){
+    return `${base} [${type}]`;
+  }
+  return null;
+}
+const REPORT_CATEGORIES = [
+  "그래피티2 [배터리]","그래피티2 [파드]",
+  "그래피티C [배터리]","그래피티C [파드]",
+  "그래피티3 [구모델]","그래피티3 [신모델]",
+  "롤리팟-J [구모델]","롤리팟-J [신모델]"
+];
+
+/* 카테고리별 A/S 처리 파이프라인 (본사 제품 / 타사 제품이 서로 다릅니다) */
+const STATUS_FLOW_AS = {
+  hq: [
+    {code:'received', label:'접수 완료'},
+    {code:'erp_done', label:'ERP 기입 완료'}
+  ],
+  other: [
+    {code:'received', label:'지점 접수'},
+    {code:'confirmed', label:'로데오점 접수확인'},
+    {code:'sent_out', label:'제조사 발송·검사중'},
+    {code:'restocked', label:'재입고 완료'},
+    {code:'sent_branch', label:'지점 발송완료'},
+    {code:'picked_up', label:'고객 수령완료'}
+  ]
+};
+const ALL_STATUS_LABELS_AS = {
+  received:'접수', erp_done:'ERP 기입완료', confirmed:'로데오점 접수확인', sent_out:'발송·검사중',
+  restocked:'재입고완료', sent_branch:'지점발송완료', picked_up:'고객수령완료',
+  processing:'처리중', ready:'고객안내대기', completed:'인계완료'
+};
+function asFlow(entry){ return STATUS_FLOW_AS[entry.category] || STATUS_FLOW_AS.hq; }
+function isAsDone(entry){
+  const flow = asFlow(entry);
+  return entry.status === flow[flow.length-1].code;
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>{ t.style.display='none'; }, 2400);
+}
+function fmtDate(s){ if(!s) return '-'; const d = new Date(s); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+/* 날짜만 있는 값(YYYY-MM-DD, 예: received_date)을 시/분 없이 "M/D"로 보여줍니다.
+   new Date('YYYY-MM-DD')는 UTC 자정으로 해석돼서 시간대에 따라 날짜가 밀릴 수 있어, 직접 문자열을 잘라 씁니다. */
+function fmtDateOnly(s){ if(!s) return '-'; const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return fmtDate(s); return `${Number(m[2])}/${Number(m[3])}`; }
+/* 오늘부터 며칠 지났는지 계산합니다. 'YYYY-MM-DD'(날짜만)와 전체 타임스탬프 둘 다 받되,
+   시간대 문제를 피하려고 날짜 부분만 잘라서 로컬 자정 기준으로 비교합니다. */
+function daysSince(s){
+  if(!s) return 0;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return 0;
+  const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.max(0, Math.floor((today - d) / 86400000));
+}
+function storeName(id){ const s = STORES.find(x=>String(x.id)===String(id)); return s? s.name : '-'; }
+function reasonLabel(type,id){ const r=(REASONS[type]||[]).find(x=>String(x.id)===String(id)); return r? r.label : ''; }
+function isMobileWidth(){ return window.innerWidth <= 860; }
+
+/* ================= 로그인 ================= */
+async function loadStaffOptions(){
+  const { data, error } = await sb.from('resv_staff_public').select('*').order('name');
+  const sel = document.getElementById('login-staff');
+  if(error){ sel.innerHTML = '<option value="">불러오기 실패 — 새로고침 해주세요</option>'; console.error(error); return; }
+  sel.innerHTML = '<option value="">이름 선택</option>' + data.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+}
+function renderPinDots(){
+  document.querySelectorAll('#pin-dots span').forEach((el,i)=>{
+    el.classList.toggle('filled', i < pinBuffer.length);
+  });
+}
+function buildKeypad(){
+  const keys = ['1','2','3','4','5','6','7','8','9','지움','0','확인'];
+  const kp = document.getElementById('keypad');
+  kp.innerHTML = keys.map(k=>`<button data-k="${k}">${k}</button>`).join('');
+  kp.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const k = b.dataset.k;
+      if(k === '지움'){ pinBuffer = pinBuffer.slice(0,-1); renderPinDots(); return; }
+      if(k === '확인'){ doLogin(); return; }
+      if(pinBuffer.length < 4){ pinBuffer += k; renderPinDots(); }
+      if(pinBuffer.length === 4){ doLogin(); }
+    });
+  });
+}
+async function doLogin(){
+  const staffId = document.getElementById('login-staff').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if(!staffId){ errEl.textContent = '이름을 선택해주세요.'; return; }
+  if(pinBuffer.length !== 4){ return; }
+  const { data, error } = await sb.rpc('resv_login', { p_staff_id: Number(staffId), p_pin: pinBuffer });
+  if(error || !data || data.length === 0){
+    errEl.textContent = 'PIN이 맞지 않습니다. 다시 입력해주세요.';
+    pinBuffer = ''; renderPinDots();
+    return;
+  }
+  ME = data[0];
+  localStorage.setItem('resv_me', JSON.stringify(ME));
+  enterApp();
+}
+function tryAutoLogin(){
+  const saved = localStorage.getItem('resv_me');
+  if(saved){ try{ ME = JSON.parse(saved); enterApp(); }catch(e){} }
+}
+function doLogout(){
+  localStorage.removeItem('resv_me');
+  localStorage.removeItem('resv_current_store');
+  ME = null; CURRENT_STORE_ID = null; pinBuffer=''; renderPinDots();
+  document.getElementById('app').style.display='none';
+  document.getElementById('home-grid').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+document.getElementById('logout-btn').addEventListener('click', doLogout);
+document.getElementById('home-logout-btn').addEventListener('click', doLogout);
+
+async function enterApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span>`;
+  await loadStores();
+  await loadReasons();
+  fillStoreFilters();
+  if(ME.role === 'manager' || ME.role === 'admin'){
+    document.getElementById('settings-guard').style.display='none';
+    document.getElementById('settings-body').style.display='block';
+  }
+  await refreshPrStats();
+  await refreshAsStats();
+  if(ME.role === 'manager' || ME.role === 'admin') await refreshSettings();
+  /* 예약/AS 목록 화면은 매장을 하나 골라야 볼 수 있습니다 — 지난번에 보던 매장이 있으면
+     바로 그 매장으로 들어가고, 없으면(첫 로그인 등) 매장을 고르는 홈 화면부터 보여줍니다. */
+  const savedStore = localStorage.getItem('resv_current_store');
+  if(savedStore && STORES.some(s=>String(s.id)===String(savedStore))){
+    enterStore(Number(savedStore));
+  } else {
+    showHomeGrid();
+  }
+}
+
+/* ================= 홈 (매장 런처) ================= */
+async function showHomeGrid(){
+  document.getElementById('app').style.display='none';
+  document.getElementById('home-grid').style.display='block';
+  document.getElementById('home-greet').textContent = `${ME.name} 님`;
+  await refreshHomeGrid();
+}
+async function refreshHomeGrid(){
+  const wrap = document.getElementById('store-tile-grid');
+  if(!wrap || !STORES.length) return;
+  const [{ data: asData, error: asErr }, { data: prData, error: prErr }] = await Promise.all([
+    sb.from('resv_as_requests').select('store_id, status, received_date, created_at'),
+    sb.from('resv_product_requests').select('store_id, status'),
+  ]);
+  if(asErr) console.error(asErr);
+  if(prErr) console.error(prErr);
+  const counts = {};
+  STORES.forEach(s=> counts[s.id] = { asPending:0, asOverdueDays:0, prPending:0 });
+  (asData||[]).forEach(r=>{
+    const c = counts[r.store_id]; if(!c) return;
+    if(!isAsDone(r)){
+      c.asPending++;
+      const d = daysSince(r.received_date || r.created_at);
+      if(d > c.asOverdueDays) c.asOverdueDays = d;
+    }
+  });
+  (prData||[]).forEach(r=>{
+    const c = counts[r.store_id]; if(!c) return;
+    if(r.status!=='purchased' && r.status!=='rejected' && r.status!=='abandoned') c.prPending++;
+  });
+  wrap.innerHTML = STORES.map(s=>{
+    const c = counts[s.id];
+    const overdue = c.asPending>0 && c.asOverdueDays>=3;
+    const mine = ME.store_id && String(ME.store_id)===String(s.id);
+    return `<div class="store-tile ${mine?'mine':''}" onclick="enterStore(${s.id})">
+      <div class="tile-top">
+        ${mine?'<span class="tag-mine">내 매장</span>':'<span></span>'}
+        ${overdue?'<span class="warn-dot" title="최대 '+c.asOverdueDays+'일째 미처리"></span>':''}
+      </div>
+      <h3>${esc(s.name)}</h3>
+      <div class="tile-stats">
+        <div class="stat ${overdue?'warn':''}"><div class="n">${c.asPending}</div><div class="l">AS 처리중</div></div>
+        <div class="stat"><div class="n">${c.prPending}</div><div class="l">예약 대기</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function enterStore(id){
+  CURRENT_STORE_ID = id;
+  localStorage.setItem('resv_current_store', String(id));
+  document.getElementById('home-grid').style.display='none';
+  document.getElementById('app').style.display='block';
+  const name = storeName(id);
+  const prLabel = document.getElementById('pr-current-store-name');
+  const asLabel = document.getElementById('as-current-store-name');
+  if(prLabel) prLabel.textContent = name;
+  if(asLabel) asLabel.textContent = name;
+  document.getElementById('pr-store-filter').value = String(id);
+  document.getElementById('as-store-filter').value = String(id);
+  document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span> ${esc(name)}`;
+  refreshProductList();
+  refreshAsList();
+}
+
+/* ================= 공통 로드 ================= */
+async function loadStores(){
+  const { data, error } = await sb.from('resv_stores').select('*').eq('active', true).order('sort_order');
+  if(!error) STORES = data;
+}
+async function loadReasons(){
+  const { data, error } = await sb.from('resv_reason_options').select('*').eq('active', true).order('sort_order');
+  if(!error){
+    REASONS.product_request = data.filter(r=>r.type==='product_request');
+    REASONS.as = data.filter(r=>r.type==='as');
+  }
+}
+function fillStoreFilters(){
+  const opts = STORES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  /* 상품 예약/AS 접수 화면은 홈 화면(매장 런처)에서 고른 매장 하나로 고정되므로
+     "전체 매장" 옵션이 필요 없습니다 — enterStore()가 이 select의 값을 직접 지정합니다. */
+  ['pr-store-filter','as-store-filter'].forEach(id=>{
+    document.getElementById(id).innerHTML = opts;
+  });
+  /* 통계 화면은 매장 간 비교가 원래 목적이라 "전체 매장"을 그대로 둡니다. */
+  ['pr-stat-store-filter','as-stat-store-filter'].forEach(id=>{
+    document.getElementById(id).innerHTML = '<option value="all">전체 매장</option>' + opts;
+  });
+}
+
+/* ================= 사이드바 탭 전환 ================= */
+document.querySelectorAll('.sidebar nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.sidebar nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    document.getElementById('mobile-title').textContent = btn.dataset.title;
+    closeDrawer();
+    if(btn.dataset.tab === 'prstats') refreshPrStats();
+    if(btn.dataset.tab === 'asstats') refreshAsStats();
+  });
+});
+
+/* ================= 모바일 좌측 드로어 ================= */
+function openDrawer(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+document.getElementById('hamburger-btn').addEventListener('click', openDrawer);
+document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+/* ================= 모달 유틸 ================= */
+function openModal(html){
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', (e)=>{ if(e.target.id==='modal-overlay') closeModal(); });
+
+/* ================= 사진 첨부 공통 유틸 ================= */
+// 업로드/데이터 용량을 아끼기 위해 브라우저에서 미리 리사이즈·압축 후 올립니다.
+function compressImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(new Error('파일을 읽을 수 없습니다'));
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('이미지를 열 수 없습니다'));
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > height && width > maxDim){ height = Math.round(height * maxDim / width); width = maxDim; }
+        else if(height >= width && height > maxDim){ width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob=>{ blob ? resolve(blob) : reject(new Error('변환 실패')); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function photoPickerHtml(){
+  return `
+    <label>사진 첨부 (선택, 최대 ${PHOTO_MAX}장)</label>
+    <input type="file" id="f-photo-input" accept="image/*" multiple style="display:none">
+    <div class="photo-input-row" id="photo-preview-row">
+      <button type="button" class="photo-add-btn" onclick="document.getElementById('f-photo-input').click()">+ 사진</button>
+    </div>
+    <div class="photo-hint">사진은 자동으로 용량을 줄여서 업로드됩니다</div>`;
+}
+function bindPhotoPicker(){
+  PENDING_PHOTOS = [];
+  renderPhotoPreview();
+  const input = document.getElementById('f-photo-input');
+  if(input) input.addEventListener('change', handlePhotoInputChange);
+}
+async function handlePhotoInputChange(e){
+  const files = Array.from(e.target.files || []);
+  e.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
+  for(const file of files){
+    if(PENDING_PHOTOS.length >= PHOTO_MAX){ toast(`사진은 최대 ${PHOTO_MAX}장까지 첨부할 수 있습니다`); break; }
+    try{
+      const blob = await compressImage(file, 1280, 0.75);
+      PENDING_PHOTOS.push({ blob, url: URL.createObjectURL(blob) });
+    }catch(err){ console.error(err); toast('사진 처리 중 오류가 발생했습니다'); }
+  }
+  renderPhotoPreview();
+}
+function renderPhotoPreview(){
+  const row = document.getElementById('photo-preview-row');
+  if(!row) return;
+  const thumbs = PENDING_PHOTOS.map((p,i)=>`
+    <div class="photo-thumb"><img src="${p.url}"><button type="button" class="rm" onclick="removePendingPhoto(${i})">✕</button></div>
+  `).join('');
+  const addBtn = PENDING_PHOTOS.length < PHOTO_MAX ? `<button type="button" class="photo-add-btn" onclick="document.getElementById('f-photo-input').click()">+ 사진</button>` : '';
+  row.innerHTML = thumbs + addBtn;
+}
+function removePendingPhoto(i){ PENDING_PHOTOS.splice(i,1); renderPhotoPreview(); }
+async function uploadPendingPhotos(prefix){
+  const urls = [];
+  for(let i=0;i<PENDING_PHOTOS.length;i++){
+    const path = `${prefix}/${Date.now()}_${i}_${Math.random().toString(36).slice(2,8)}.jpg`;
+    const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, PENDING_PHOTOS[i].blob, { contentType:'image/jpeg' });
+    if(error){ console.error(error); toast('사진 업로드 실패: '+error.message); continue; }
+    const { data } = sb.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+    if(data && data.publicUrl) urls.push(data.publicUrl);
+  }
+  return urls;
+}
+function detailPhotosHtml(urls){
+  if(!urls || !urls.length) return '';
+  return `<div class="detail-photos">${urls.map(u=>`<img src="${u}" onclick="openLightbox('${u}')">`).join('')}</div>`;
+}
+function openLightbox(url){
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('photo-lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('photo-lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+}
+function openAddPhotoModal(kind, id){
+  openModal(`
+    <h2>사진 추가</h2>
+    ${photoPickerHtml()}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" id="photo-save-btn" onclick="submitAddPhoto('${kind}', ${id})">업로드</button>
+    </div>
+  `);
+  bindPhotoPicker();
+}
+async function submitAddPhoto(kind, id){
+  if(!PENDING_PHOTOS.length){ toast('사진을 선택해주세요'); return; }
+  const btn = document.getElementById('photo-save-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '업로드 중...'; }
+  const table = kind==='product' ? 'resv_product_requests' : 'resv_as_requests';
+  const items = kind==='product' ? PR_ITEMS : AS_ITEMS;
+  const item = items.find(r=>String(r.id)===String(id));
+  const existing = (item && item.photo_urls) || [];
+  const newUrls = await uploadPendingPhotos(kind==='product' ? 'product' : 'as');
+  if(!newUrls.length){ if(btn){ btn.disabled=false; btn.textContent='업로드'; } return; }
+  const { error } = await sb.from(table).update({ photo_urls: [...existing, ...newUrls] }).eq('id', id);
+  if(error){ toast('저장 실패: '+error.message); if(btn){ btn.disabled=false; btn.textContent='업로드'; } return; }
+  closeModal(); toast('사진을 추가했습니다');
+  if(kind==='product') refreshProductList(); else refreshAsList();
+}
+
+/* =========================================================
+   상품 예약 (미취급 + 품절) — 목록 + 상세패널
+   ========================================================= */
+async function fetchProductRequests(){
+  let q = sb.from('resv_product_requests').select('*').order('created_at', {ascending:false});
+  const storeF = document.getElementById('pr-store-filter').value;
+  const statusF = document.getElementById('pr-status-filter').value;
+  if(storeF && storeF !== 'all') q = q.eq('store_id', Number(storeF));
+  if(statusF && statusF !== 'all') q = q.eq('status', statusF);
+  if(PR_TYPE_FILTER !== 'all') q = q.eq('request_type', PR_TYPE_FILTER);
+  const { data, error } = await q;
+  if(error){ console.error(error); return []; }
+  return data;
+}
+function prRowHtml(r){
+  const selected = String(r.id)===String(PR_SELECTED_ID);
+  const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
+  const statusClass = r.status==='rejected' ? 'status-rejected' : (r.status==='purchased' ? 'status-purchased' : '');
+  return `<div class="row ${selected?'selected':''}" onclick="selectProductItem(${r.id})">
+    <div class="top"><span class="pname">${r.product_name}</span></div>
+    <div class="meta">${storeName(r.store_id)} · ${r.customer_name||'-'} · 등록 ${r.requested_by||'-'} · ${fmtDate(r.created_at)}</div>
+    <div class="badges">
+      <span class="tag ${typeClass}">${TYPE_LABEL_PR[r.request_type]||'미취급 상품'}</span>
+      <span class="tag ${statusClass}">${STATUS_LABEL_PR[r.status]}</span>
+      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷 ${r.photo_urls.length}</span>` : ''}
+    </div>
+  </div>`;
+}
+function prDetailHtml(r){
+  const canReview = (ME.role==='manager'||ME.role==='admin') && r.status==='requested';
+  let actions = '';
+  if(canReview){
+    actions = `<button class="btn btn-primary" onclick="openReviewModal(${r.id})">검토하기 (발주가능/불가)</button>`;
+  } else if(r.status==='approved'){
+    actions = `<button class="btn btn-outline" onclick="markArrived(${r.id})">입고완료 처리</button>`;
+  } else if(r.status==='arrived'){
+    actions = `<button class="btn btn-outline" onclick="openContactModal(${r.id})">연락 기록</button>`;
+  } else if(r.status==='contacted'){
+    actions = `<button class="btn btn-primary" onclick="markPurchase(${r.id}, true)">구매완료</button>
+               <button class="btn btn-danger" onclick="markPurchase(${r.id}, false)">구매포기</button>`;
+  }
+  const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
+  return `<div class="detail-card">
+    <div class="top-row">
+      <div>
+        <h2>${r.product_name}</h2>
+        <div class="sub">${storeName(r.store_id)} · 접수 ${fmtDate(r.created_at)} · 등록 ${r.requested_by}</div>
+      </div>
+      <div class="badges">
+        <span class="tag ${typeClass}">${TYPE_LABEL_PR[r.request_type]||'미취급 상품'}</span>
+        <span class="tag">${STATUS_LABEL_PR[r.status]}</span>
+      </div>
+    </div>
+    <div class="field"><span>고객 성함</span><b>${r.customer_name||'-'}</b></div>
+    <div class="field"><span>연락처</span><b>${r.customer_phone||'-'}</b></div>
+    <div class="field"><span>접수 사유</span><b>${reasonLabel('product_request', r.reason_id)||'-'}</b></div>
+    <div class="field"><span>메모</span><b>${r.memo||'-'}</b></div>
+    ${r.status==='rejected' && r.reject_reason? `<div class="field"><span>발주불가 사유</span><b style="color:var(--red)">${r.reject_reason}</b></div>`:''}
+    ${r.contact_result? `<div class="field"><span>연락 결과</span><b>${r.contact_result}</b></div>`:''}
+    ${r.status==='purchased' ? `<div class="field"><span>구매완료</span><b>${fmtDate(r.purchased_at)}</b></div>`:''}
+    ${detailPhotosHtml(r.photo_urls)}
+    <div class="detail-actions">${actions}<button class="btn btn-outline btn-sm" onclick="openAddPhotoModal('product', ${r.id})">+ 사진 추가</button></div>
+  </div>`;
+}
+function renderProductDetail(){
+  const item = PR_ITEMS.find(r=>String(r.id)===String(PR_SELECTED_ID));
+  document.getElementById('pr-detail').innerHTML = item ? prDetailHtml(item) : '<div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div>';
+}
+function selectProductItem(id){
+  PR_SELECTED_ID = id;
+  document.querySelectorAll('#pr-list .row').forEach(el=>el.classList.remove('selected'));
+  renderProductList(false);
+  renderProductDetail();
+  if(isMobileWidth()) document.getElementById('pr-md-root').classList.add('show-detail');
+}
+function renderProductList(resetSelection){
+  const list = document.getElementById('pr-list');
+  if(!PR_ITEMS.length){ list.innerHTML = '<div class="empty">해당 조건의 문의가 없습니다</div>'; if(resetSelection){ PR_SELECTED_ID=null; renderProductDetail(); } return; }
+  if(resetSelection && !PR_ITEMS.find(r=>String(r.id)===String(PR_SELECTED_ID))){
+    PR_SELECTED_ID = PR_ITEMS[0].id;
+  }
+  /* 홈 화면에서 고른 매장 하나로 항상 고정되므로(매장별 그룹핑 불필요) 그냥 나열합니다. */
+  list.innerHTML = PR_ITEMS.map(prRowHtml).join('');
+}
+async function refreshProductList(){
+  PR_ITEMS = await fetchProductRequests();
+  renderProductList(true);
+  renderProductDetail();
+}
+document.getElementById('pr-store-filter').addEventListener('change', refreshProductList);
+document.getElementById('pr-status-filter').addEventListener('change', refreshProductList);
+document.getElementById('pr-back-btn').addEventListener('click', ()=>{
+  document.getElementById('pr-md-root').classList.remove('show-detail');
+});
+document.getElementById('pr-type-tabs').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#pr-type-tabs button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  PR_TYPE_FILTER = b.dataset.type;
+  refreshProductList();
+});
+
+/* --- 새 등록 (미취급/품절 탭 선택) --- */
+let newRequestType = 'unstocked';
+document.getElementById('pr-new-btn').addEventListener('click', ()=>{
+  newRequestType = (PR_TYPE_FILTER === 'out_of_stock') ? 'out_of_stock' : 'unstocked';
+  const storeOpts = STORES.map(s=>`<option value="${s.id}" ${String(CURRENT_STORE_ID)===String(s.id)?'selected':''}>${s.name}</option>`).join('');
+  const reasonOpts = REASONS.product_request.map(r=>`<option value="${r.id}">${r.label}</option>`).join('');
+  openModal(`
+    <h2>새 상품 예약 등록</h2>
+    <label>유형</label>
+    <div class="type-toggle" id="f-type-toggle">
+      <button type="button" data-type="unstocked" class="${newRequestType==='unstocked'?'active':''}">미취급 상품</button>
+      <button type="button" data-type="out_of_stock" class="${newRequestType==='out_of_stock'?'active':''}">품절 상품</button>
+    </div>
+    <div class="store-select-box">
+      <label>어느 매장 접수 건인가요?</label>
+      <select id="f-store">${storeOpts}</select>
+      <div class="ssb-hint">지금 보고 있는 매장이 기본 선택되어 있습니다. 다른 매장 대신 접수할 때는 여기서 바꿔주세요.</div>
+    </div>
+    <label>제품명 (고객이 찾는 상품)</label><input id="f-product" placeholder="예: RELX 파이 맥스 머스캣">
+    <div class="row2">
+      <div><label>고객 성함</label><input id="f-cname" placeholder="홍길동"></div>
+      <div><label>연락처</label><input id="f-cphone" placeholder="010-0000-0000"></div>
+    </div>
+    <label>접수 사유</label><select id="f-reason"><option value="">선택 안함</option>${reasonOpts}</select>
+    <label>메모 (선택)</label><textarea id="f-memo" placeholder="추가로 참고할 내용"></textarea>
+    ${photoPickerHtml()}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitProductRequest()">등록</button>
+    </div>
+  `);
+  document.getElementById('f-type-toggle').addEventListener('click', (e)=>{
+    const b = e.target.closest('button'); if(!b) return;
+    newRequestType = b.dataset.type;
+    document.querySelectorAll('#f-type-toggle button').forEach(x=>x.classList.toggle('active', x===b));
+  });
+  bindPhotoPicker();
+});
+async function submitProductRequest(){
+  const product_name = document.getElementById('f-product').value.trim();
+  if(!product_name){ toast('제품명을 입력해주세요'); return; }
+  const btn = document.querySelector('#modal-body .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = PENDING_PHOTOS.length ? '사진 업로드 중...' : '등록 중...'; }
+  const photo_urls = await uploadPendingPhotos('product');
+  const payload = {
+    store_id: Number(document.getElementById('f-store').value),
+    product_name,
+    request_type: newRequestType,
+    customer_name: document.getElementById('f-cname').value.trim() || null,
+    customer_phone: document.getElementById('f-cphone').value.trim() || null,
+    reason_id: document.getElementById('f-reason').value || null,
+    memo: document.getElementById('f-memo').value.trim() || null,
+    requested_by: ME.name,
+    status: 'requested',
+    photo_urls
+  };
+  const { error } = await sb.from('resv_product_requests').insert(payload);
+  if(error){ toast('등록 실패: '+error.message); if(btn){ btn.disabled=false; btn.textContent='등록'; } return; }
+  closeModal(); toast('등록되었습니다'); refreshProductList();
+}
+
+/* --- 실장님 검토 (발주가능/불가) --- */
+function openReviewModal(id){
+  openModal(`
+    <h2>발주 가능 여부 검토</h2>
+    <p style="font-size:13px;color:var(--gray)">발주가 불가능한 제품이라면 사유를 꼭 남겨주세요. 직원이 고객에게 안내할 때 참고합니다.</p>
+    <label>발주 불가 사유 (발주불가 선택 시)</label>
+    <textarea id="f-reject-reason" placeholder="예: 단종된 제품 / 국내 미유통 / 정식 수입사 없음"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="submitReview(${id}, false)">발주불가</button>
+      <button class="btn btn-primary" onclick="submitReview(${id}, true)">발주가능</button>
+    </div>
+  `);
+}
+async function submitReview(id, approve){
+  const patch = approve
+    ? { status:'approved', reviewed_by: ME.name, reviewed_at: new Date().toISOString(), reject_reason: null }
+    : { status:'rejected', reviewed_by: ME.name, reviewed_at: new Date().toISOString(), reject_reason: document.getElementById('f-reject-reason').value.trim() || '사유 미기재' };
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast(approve? '발주가능으로 처리했습니다':'발주불가로 처리했습니다'); refreshProductList();
+}
+async function markArrived(id){
+  const { error } = await sb.from('resv_product_requests').update({ status:'arrived', arrived_at: new Date().toISOString() }).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('입고완료로 표시했습니다 (고객에게 연락해주세요)'); refreshProductList();
+}
+function openContactModal(id){
+  openModal(`
+    <h2>고객 연락 결과</h2>
+    <label>연락 결과</label>
+    <select id="f-contact-result">
+      <option value="연결됨 - 구매의사 확인중">연결됨 - 구매의사 확인중</option>
+      <option value="부재중 - 재시도 필요">부재중 - 재시도 필요</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitContact(${id})">저장</button>
+    </div>
+  `);
+}
+async function submitContact(id){
+  const result = document.getElementById('f-contact-result').value;
+  const patch = result.startsWith('연결됨')
+    ? { status:'contacted', contacted_at: new Date().toISOString(), contact_result: result }
+    : { contact_result: result }; // 부재중이면 상태는 arrived 유지, 시도 기록만 남김
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast('저장했습니다'); refreshProductList();
+}
+async function markPurchase(id, purchased){
+  const patch = purchased
+    ? { status:'purchased', purchased_at: new Date().toISOString() }
+    : { status:'abandoned' };
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast(purchased? '구매완료로 처리했습니다' : '구매포기로 처리했습니다'); refreshProductList();
+}
+
+/* =========================================================
+   AS 접수 — 목록 + 상세패널
+   ========================================================= */
+async function fetchAsRequests(){
+  /* 실제 접수일(received_date) 기준으로 정렬합니다 — 과거 스프레드시트에서 옮겨온 건들은
+     DB에 입력된 시각(created_at)과 실제 접수일이 달라서, created_at으로 정렬하면 목록 순서가
+     실제 접수 순서와 안 맞고 뒤섞여 보였습니다. 같은 날짜끼리는 created_at으로 2차 정렬합니다. */
+  let q = sb.from('resv_as_requests').select('*').order('received_date', {ascending:false, nullsFirst:false}).order('created_at', {ascending:false});
+  const storeF = document.getElementById('as-store-filter').value;
+  if(storeF && storeF !== 'all') q = q.eq('store_id', Number(storeF));
+  const { data, error } = await q;
+  if(error){ console.error(error); return []; }
+  return data;
+}
+function asProductLabel(r){
+  if(r.product_family){
+    return [r.product_family, r.product_type, r.product_option].filter(Boolean).join(' · ');
+  }
+  return r.device_name || '-';
+}
+function filterAsItems(items){
+  const statusF = document.getElementById('as-status-filter').value;
+  const qF = document.getElementById('as-q-filter').value.trim().toLowerCase();
+  return items.filter(r=>{
+    if(AS_CATEGORY_FILTER !== 'all' && (r.category||'hq') !== AS_CATEGORY_FILTER) return false;
+    if(statusF === 'pending' && isAsDone(r)) return false;
+    if(statusF === 'done' && !isAsDone(r)) return false;
+    if(qF && !((r.customer_name||'').toLowerCase().includes(qF) || (r.requested_by||'').toLowerCase().includes(qF))) return false;
+    return true;
+  });
+}
+function asRowHtml(r){
+  const selected = String(r.id)===String(AS_SELECTED_ID);
+  const done = isAsDone(r);
+  /* 실제 접수일(received_date) 기준 — 과거 스프레드시트 이관 건은 DB 입력 시각(created_at)과
+     실제 접수일이 달라서, 목록에 입력 시각을 보여주면 순서·날짜가 실제와 안 맞아 헷갈립니다. */
+  const days = daysSince(r.received_date || r.created_at);
+  const overdue = !done && days>=3;
+  return `<div class="row ${selected?'selected':''}" onclick="selectAsItem(${r.id})">
+    <div class="top"><span class="pname">${esc(asProductLabel(r))}</span></div>
+    <div class="meta">${esc(storeName(r.store_id))} · ${esc(r.customer_name||'-')} · 등록 ${esc(r.requested_by||'-')} · ${fmtDateOnly(r.received_date || r.created_at)} 접수</div>
+    <div class="badges">
+      <span class="tag">${esc(AS_CATEGORY_LABEL[r.category] || '본사 제품')}</span>
+      <span class="tag ${done?'status-purchased':''}">${esc(ALL_STATUS_LABELS_AS[r.status] || r.status)}</span>
+      ${!done ? `<span class="tag ${overdue?'overdue-tag':''}">${days===0?'오늘 접수':days+'일째'}</span>` : ''}
+      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷 ${r.photo_urls.length}</span>` : ''}
+    </div>
+  </div>`;
+}
+function asPipelineHtml(r){
+  const flow = asFlow(r);
+  const idx = flow.findIndex(f=>f.code===r.status);
+  const nodesHtml = flow.map((f,i)=>{
+    const nodeState = idx<0 ? '' : (i<idx ? 'done' : (i===idx ? 'current' : ''));
+    const node = `<span class="node ${nodeState}"></span>`;
+    if(i === flow.length-1) return node;
+    const lineState = (idx>=0 && i<idx) ? 'done' : '';
+    return node + `<span class="seg-line ${lineState}"></span>`;
+  }).join('');
+  const labelsHtml = `<div class="pipeline-labels">${flow.map(f=>`<span>${esc(f.label)}</span>`).join('')}</div>`;
+  return `${labelsHtml}<div class="pipeline">${nodesHtml}</div>`;
+}
+function asDetailHtml(r){
+  const flow = asFlow(r);
+  const idx = flow.findIndex(f=>f.code===r.status);
+  const done = isAsDone(r);
+  let actions = '';
+  if(!done){
+    const next = idx>=0 ? flow[idx+1] : flow[0];
+    if(next) actions += `<button class="btn btn-primary" onclick="advanceAsStatus(${r.id})">${esc(next.label)} 처리</button>`;
+  }
+  if(idx>0) actions += `<button class="btn btn-outline" onclick="revertAsStatus(${r.id})">이전 단계로</button>`;
+  const contactLabel = r.contact_mode==='last4' ? '뒷 4자리만 수집' : '전체번호 수집';
+  return `<div class="detail-card">
+    <div class="top-row">
+      <div>
+        <h2>${esc(asProductLabel(r))}</h2>
+        <div class="sub">${esc(storeName(r.store_id))} · 접수 ${fmtDateOnly(r.received_date || r.created_at)} · 등록 ${esc(r.requested_by)}</div>
+      </div>
+      <div class="badges"><span class="tag">${esc(AS_CATEGORY_LABEL[r.category]||'본사 제품')}</span></div>
+    </div>
+    ${asPipelineHtml(r)}
+    <div class="field"><span>접수방식</span><b>${esc(r.service_method||'-')}</b></div>
+    <div class="field"><span>고객 성함</span><b>${esc(r.customer_name||'-')}</b></div>
+    <div class="field"><span>연락처</span><b>${esc(r.customer_phone||'-')} <span style="color:var(--gray);font-weight:500;font-size:11.5px;">(${contactLabel})</span></b></div>
+    ${r.defect_reason? `<div class="field"><span>불량 사유</span><b>${esc(r.defect_reason)}</b></div>`:''}
+    ${r.defect_detail? `<div class="field"><span>상세 내용</span><b>${esc(r.defect_detail)}</b></div>`:''}
+    ${r.symptom_memo? `<div class="field"><span>메모</span><b>${esc(r.symptom_memo)}</b></div>`:''}
+    <div class="field"><span>접수일</span><b>${esc(r.received_date||'-')}</b></div>
+    ${detailPhotosHtml(r.photo_urls)}
+    <div class="detail-actions">${actions}<button class="btn btn-outline btn-sm" onclick="openAddPhotoModal('as', ${r.id})">+ 사진 추가</button></div>
+  </div>`;
+}
+function renderAsDetail(){
+  const item = AS_ITEMS.find(r=>String(r.id)===String(AS_SELECTED_ID));
+  document.getElementById('as-detail').innerHTML = item ? asDetailHtml(item) : '<div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div>';
+}
+function selectAsItem(id){
+  AS_SELECTED_ID = id;
+  renderAsList(false);
+  renderAsDetail();
+  if(isMobileWidth()) document.getElementById('as-md-root').classList.add('show-detail');
+}
+function renderAsList(resetSelection){
+  const list = document.getElementById('as-list');
+  if(!AS_ITEMS.length){ list.innerHTML = '<div class="empty">해당 조건의 AS 접수가 없습니다</div>'; if(resetSelection){ AS_SELECTED_ID=null; renderAsDetail(); } return; }
+  if(resetSelection && !AS_ITEMS.find(r=>String(r.id)===String(AS_SELECTED_ID))){
+    AS_SELECTED_ID = AS_ITEMS[0].id;
+  }
+  /* 홈 화면에서 고른 매장 하나로 항상 고정되므로(매장별 그룹핑 불필요) 그냥 나열합니다.
+     여러 매장의 현황을 한눈에 비교하는 건 이제 홈 화면(매장 런처)의 역할입니다. */
+  list.innerHTML = AS_ITEMS.map(asRowHtml).join('');
+}
+function applyAsFilters(resetSelection){
+  AS_ITEMS = filterAsItems(AS_ITEMS_RAW);
+  renderAsList(resetSelection);
+  renderAsDetail();
+}
+async function refreshAsList(){
+  AS_ITEMS_RAW = await fetchAsRequests();
+  applyAsFilters(true);
+}
+async function advanceAsStatus(id){
+  const item = AS_ITEMS_RAW.find(r=>String(r.id)===String(id));
+  if(!item) return;
+  const flow = asFlow(item);
+  const idx = flow.findIndex(f=>f.code===item.status);
+  const next = idx>=0 ? flow[idx+1] : flow[0];
+  if(!next) return;
+  const { error } = await sb.from('resv_as_requests').update({ status: next.code, updated_by: ME.name }).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast(`${next.label} 처리했습니다`); refreshAsList();
+}
+async function revertAsStatus(id){
+  const item = AS_ITEMS_RAW.find(r=>String(r.id)===String(id));
+  if(!item) return;
+  const flow = asFlow(item);
+  const idx = flow.findIndex(f=>f.code===item.status);
+  if(idx<=0) return;
+  const prev = flow[idx-1];
+  const { error } = await sb.from('resv_as_requests').update({ status: prev.code, updated_by: ME.name }).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('이전 단계로 되돌렸습니다'); refreshAsList();
+}
+document.getElementById('as-store-filter').addEventListener('change', refreshAsList);
+document.getElementById('as-status-filter').addEventListener('change', ()=> applyAsFilters(true));
+document.getElementById('as-q-filter').addEventListener('input', ()=> applyAsFilters(true));
+document.getElementById('as-category-tabs').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#as-category-tabs button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  AS_CATEGORY_FILTER = b.dataset.cat;
+  applyAsFilters(true);
+});
+document.getElementById('as-back-btn').addEventListener('click', ()=>{
+  document.getElementById('as-md-root').classList.remove('show-detail');
+});
+
+/* --- 새 AS 접수 등록 모달 (제품 카탈로그 검색 + 카테고리별 항목) --- */
+function renderAsProductArea(){
+  const area = document.getElementById('f-as-product-area');
+  if(!area) return;
+  if(AS_NEW_CATEGORY === 'hq'){
+    if(AS_PICKED_PRODUCT){
+      area.innerHTML = `
+        <label>제품</label>
+        <div class="as-picked-chip">
+          <div class="pc-label">${esc(AS_PICKED_PRODUCT.label)}</div>
+          <div class="pc-actions"><button type="button" class="as-link-btn" onclick="clearPickedAsProduct()">다시 선택</button></div>
+        </div>`;
+    } else {
+      area.innerHTML = `
+        <label>제품 검색</label>
+        <input id="f-as-product-search" placeholder="제품명을 입력하세요 (예: 그래피티C, 롤리팟)" autocomplete="off">
+        <div class="as-search-results" id="f-as-search-results" style="display:none;"></div>
+        <div class="as-hint">목록에 없는 제품이면 <button type="button" class="as-link-btn" onclick="useFreeformAsProduct()">직접 입력</button>으로 등록할 수 있습니다</div>`;
+      const input = document.getElementById('f-as-product-search');
+      input.addEventListener('input', ()=>{
+        const results = searchProducts(input.value.trim());
+        const box = document.getElementById('f-as-search-results');
+        if(!results.length){ box.style.display='none'; box.innerHTML=''; return; }
+        box.style.display='block';
+        box.innerHTML = results.map((p,i)=>`<div class="as-search-item" data-i="${i}">${esc(p.label)}</div>`).join('');
+        box.querySelectorAll('.as-search-item').forEach(el=>{
+          el.addEventListener('click', ()=>{
+            AS_PICKED_PRODUCT = results[Number(el.dataset.i)];
+            renderAsProductArea();
+          });
+        });
+      });
+    }
+  } else {
+    area.innerHTML = `<label>제품명 / 기기명</label><input id="f-device" placeholder="예: 타사 기기·제품명">`;
+  }
+  renderAsReasonArea();
+}
+function clearPickedAsProduct(){ AS_PICKED_PRODUCT = null; renderAsProductArea(); }
+function useFreeformAsProduct(){
+  const input = document.getElementById('f-as-product-search');
+  const text = input ? input.value.trim() : '';
+  if(!text){ toast('제품명을 입력해주세요'); return; }
+  AS_PICKED_PRODUCT = { family: text, type:'', option:'', label: text, freeform:true };
+  renderAsProductArea();
+}
+function renderAsReasonArea(){
+  const area = document.getElementById('f-as-reason-area');
+  if(!area) return;
+  let reasons = null;
+  if(AS_NEW_CATEGORY==='hq' && AS_PICKED_PRODUCT && !AS_PICKED_PRODUCT.freeform){
+    reasons = trackedReasonList(AS_PICKED_PRODUCT.family, AS_PICKED_PRODUCT.type);
+  }
+  area.innerHTML = reasons ? `
+    <label>불량 사유</label>
+    <select id="f-defect-reason">${reasons.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
+    <label>상세 내용 (선택)</label><textarea id="f-defect-detail" placeholder="증상을 조금 더 자세히 적어주세요"></textarea>` : '';
+}
+document.getElementById('as-new-btn').addEventListener('click', ()=>{
+  AS_NEW_CATEGORY = (AS_CATEGORY_FILTER==='other') ? 'other' : 'hq';
+  AS_PICKED_PRODUCT = null;
+  const storeOpts = STORES.map(s=>`<option value="${s.id}" ${String(CURRENT_STORE_ID)===String(s.id)?'selected':''}>${s.name}</option>`).join('');
+  const today = new Date().toISOString().slice(0,10);
+  openModal(`
+    <h2>새 AS 접수</h2>
+    <div class="store-select-box">
+      <label>어느 매장 접수 건인가요?</label>
+      <select id="f-store">${storeOpts}</select>
+      <div class="ssb-hint">지금 보고 있는 매장이 기본 선택되어 있습니다. 다른 매장 대신 접수할 때는 여기서 바꿔주세요.</div>
+    </div>
+    <label>제품 구분</label>
+    <div class="type-toggle" id="f-as-cat-toggle">
+      <button type="button" data-cat="hq" class="${AS_NEW_CATEGORY==='hq'?'active':''}">본사 제품</button>
+      <button type="button" data-cat="other" class="${AS_NEW_CATEGORY==='other'?'active':''}">타사 제품</button>
+    </div>
+    <div id="f-as-product-area"></div>
+    <label>접수방식</label>
+    <div class="type-toggle" id="f-as-method-toggle">
+      <button type="button" data-m="현장교체" class="active">현장교체</button>
+      <button type="button" data-m="단순접수">단순접수</button>
+    </div>
+    <div class="row2">
+      <div><label>고객 성함</label><input id="f-cname" placeholder="홍길동"></div>
+      <div><label>연락처</label><input id="f-cphone" placeholder="010-0000-0000"></div>
+    </div>
+    <label>연락처 수집 방식</label>
+    <div class="type-toggle" id="f-as-contact-toggle">
+      <button type="button" data-c="full" class="active">전체번호 저장</button>
+      <button type="button" data-c="last4">뒷 4자리만</button>
+    </div>
+    <div id="f-as-reason-area"></div>
+    <label>메모 (선택)</label><textarea id="f-memo" placeholder="증상 상세, 구매일 등"></textarea>
+    <label>접수일</label><input type="date" id="f-received-date" value="${today}">
+    ${photoPickerHtml()}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitAsRequest()">등록</button>
+    </div>
+  `);
+  bindPhotoPicker();
+  renderAsProductArea();
+  document.getElementById('f-as-cat-toggle').addEventListener('click', (e)=>{
+    const b = e.target.closest('button'); if(!b) return;
+    AS_NEW_CATEGORY = b.dataset.cat; AS_PICKED_PRODUCT = null;
+    document.querySelectorAll('#f-as-cat-toggle button').forEach(x=>x.classList.toggle('active', x===b));
+    renderAsProductArea();
+  });
+  document.getElementById('f-as-method-toggle').addEventListener('click', (e)=>{
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#f-as-method-toggle button').forEach(x=>x.classList.toggle('active', x===b));
+  });
+  document.getElementById('f-as-contact-toggle').addEventListener('click', (e)=>{
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('#f-as-contact-toggle button').forEach(x=>x.classList.toggle('active', x===b));
+    const ph = document.getElementById('f-cphone');
+    if(ph) ph.placeholder = b.dataset.c==='last4' ? '뒤 4자리 (예: 1234)' : '010-0000-0000';
+  });
+});
+async function submitAsRequest(){
+  let device_name, product_family=null, product_type=null, product_option=null;
+  if(AS_NEW_CATEGORY === 'hq'){
+    if(!AS_PICKED_PRODUCT){ toast('제품을 선택하거나 직접 입력해주세요'); return; }
+    device_name = AS_PICKED_PRODUCT.label;
+    product_family = AS_PICKED_PRODUCT.family;
+    product_type = AS_PICKED_PRODUCT.type || null;
+    product_option = AS_PICKED_PRODUCT.option || null;
+  } else {
+    device_name = document.getElementById('f-device').value.trim();
+    if(!device_name){ toast('제품명을 입력해주세요'); return; }
+  }
+  const methodBtn = document.querySelector('#f-as-method-toggle button.active');
+  const contactBtn = document.querySelector('#f-as-contact-toggle button.active');
+  const reasonSel = document.getElementById('f-defect-reason');
+  const detailEl = document.getElementById('f-defect-detail');
+  const report_key = (AS_NEW_CATEGORY==='hq' && AS_PICKED_PRODUCT && !AS_PICKED_PRODUCT.freeform)
+    ? reportKeyOf(AS_PICKED_PRODUCT.family, AS_PICKED_PRODUCT.type) : null;
+  const btn = document.querySelector('#modal-body .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = PENDING_PHOTOS.length ? '사진 업로드 중...' : '등록 중...'; }
+  const photo_urls = await uploadPendingPhotos('as');
+  const payload = {
+    store_id: Number(document.getElementById('f-store').value),
+    device_name,
+    category: AS_NEW_CATEGORY,
+    product_family, product_type, product_option,
+    service_method: methodBtn ? methodBtn.dataset.m : '현장교체',
+    contact_mode: contactBtn ? contactBtn.dataset.c : 'full',
+    customer_name: document.getElementById('f-cname').value.trim() || null,
+    customer_phone: document.getElementById('f-cphone').value.trim() || null,
+    defect_reason: reasonSel ? reasonSel.value : null,
+    defect_detail: detailEl ? (detailEl.value.trim() || null) : null,
+    report_key,
+    symptom_memo: document.getElementById('f-memo').value.trim() || null,
+    received_date: document.getElementById('f-received-date').value || new Date().toISOString().slice(0,10),
+    requested_by: ME.name,
+    status: 'received',
+    photo_urls
+  };
+  const { error } = await sb.from('resv_as_requests').insert(payload);
+  if(error){ toast('등록 실패: '+error.message); if(btn){ btn.disabled=false; btn.textContent='등록'; } return; }
+  closeModal(); toast('AS 접수가 등록되었습니다'); refreshAsList();
+}
+
+/* =========================================================
+   통계 화면 공통 유틸 — 예약 통계 / AS 통계 둘 다 여기서 씁니다.
+   우선순위: 월 선택 > 기간 직접 설정 > 최근 N일 프리셋 > 전체 기간
+   ========================================================= */
+/* 'YYYY-MM' 값을 받아 그 달의 시작일~다음달 시작일(exclusive)을 돌려줍니다 */
+function monthRange(mk){
+  const [y,m] = mk.split('-').map(Number);
+  const start = `${y}-${String(m).padStart(2,'0')}-01`;
+  const ny = m===12 ? y+1 : y, nm = m===12 ? 1 : m+1;
+  const end = `${ny}-${String(nm).padStart(2,'0')}-01`;
+  return {start, end};
+}
+/* 통계 화면의 "월" 필터 옵션을 최근 12개월(이번 달 포함) 역순으로 채웁니다 */
+function fillStatMonthOptions(selectId){
+  const sel = document.getElementById(selectId);
+  if(!sel || sel.dataset.filled) return;
+  const now = new Date();
+  const opts = ['<option value="all">전체 월</option>'];
+  for(let i=0;i<12;i++){
+    const y = now.getFullYear(), m = now.getMonth()+1-i;
+    const yy = m<=0 ? y-1 : y, mm = m<=0 ? m+12 : m;
+    const mk = `${yy}-${String(mm).padStart(2,'0')}`;
+    opts.push(`<option value="${mk}">${yy}년 ${mm}월</option>`);
+  }
+  sel.innerHTML = opts.join('');
+  sel.dataset.filled = '1';
+}
+/* prefix 예: 'pr-stat' / 'as-stat'. dateCol은 실제로 필터링할 날짜 컬럼
+   (예약은 created_at, AS는 실제 접수일인 received_date를 씁니다 — AS는 과거 스프레드시트
+   이관 데이터가 섞여있어서 DB 입력 시각인 created_at으로 기간을 걸면 실제 접수일과 안 맞습니다). */
+function resolveStatRange(prefix, dateCol){
+  const monthSel = document.getElementById(prefix+'-month');
+  const monthVal = monthSel ? monthSel.value : 'all';
+  if(monthVal && monthVal !== 'all'){
+    const {start,end} = monthRange(monthVal);
+    return {col:dateCol, start, end};
+  }
+  const periodSel = document.getElementById(prefix+'-period');
+  const periodVal = periodSel ? periodSel.value : 'all';
+  if(periodVal === 'custom'){
+    const fromV = document.getElementById(prefix+'-from').value;
+    const toV = document.getElementById(prefix+'-to').value;
+    if(fromV && toV){
+      const endD = new Date(toV+'T00:00:00'); endD.setDate(endD.getDate()+1);
+      const end = endD.toISOString().slice(0,10);
+      return {col:dateCol, start: fromV, end};
+    }
+    return {col:dateCol, start:null, end:null}; /* 둘 다 아직 안 채웠으면 전체 기간으로 취급 */
+  }
+  if(!periodVal || periodVal === 'all') return {col:dateCol, start:null, end:null};
+  const d = new Date(); d.setDate(d.getDate() - Number(periodVal));
+  const start = dateCol==='received_date' ? d.toISOString().slice(0,10) : d.toISOString();
+  return {col:dateCol, start, end:null};
+}
+function applyStatRange(query, range){
+  if(range.start) query = query.gte(range.col, range.start);
+  if(range.end) query = query.lt(range.col, range.end);
+  return query;
+}
+/* 월을 고르면 "기간 직접 설정" 입력칸은 의미가 없어지므로 숨기고, 기간 select에서
+   "기간 직접 설정"을 고르면 두 날짜칸을 보여줍니다. */
+function wireStatRangeControls(prefix, onChange){
+  fillStatMonthOptions(prefix+'-month');
+  const monthSel = document.getElementById(prefix+'-month');
+  const periodSel = document.getElementById(prefix+'-period');
+  const rangeBox = document.getElementById(prefix+'-custom-range');
+  const fromEl = document.getElementById(prefix+'-from');
+  const toEl = document.getElementById(prefix+'-to');
+  function syncVisibility(){
+    const monthActive = monthSel && monthSel.value !== 'all';
+    periodSel.disabled = monthActive;
+    if(rangeBox) rangeBox.style.display = (!monthActive && periodSel.value==='custom') ? 'inline-flex' : 'none';
+  }
+  if(monthSel) monthSel.addEventListener('change', ()=>{ syncVisibility(); onChange(); });
+  periodSel.addEventListener('change', ()=>{ syncVisibility(); onChange(); });
+  if(fromEl) fromEl.addEventListener('change', onChange);
+  if(toEl) toEl.addEventListener('change', onChange);
+  syncVisibility();
+}
+
+/* =========================================================
+   예약 통계 (미취급 + 품절) — AS 통계와 완전히 분리된 화면
+   ========================================================= */
+let chartReasonPr, chartOrderable, chartStorePr, chartTypePr;
+async function refreshPrStats(){
+  if(!ME) return;
+  fillStatMonthOptions('pr-stat-month');
+  const storeFilter = document.getElementById('pr-stat-store-filter').value;
+  const typeFilter = document.getElementById('pr-stat-type-filter').value;
+  const range = resolveStatRange('pr-stat', 'created_at');
+
+  let qp = sb.from('resv_product_requests').select('*');
+  if(storeFilter!=='all') qp = qp.eq('store_id', Number(storeFilter));
+  if(typeFilter!=='all') qp = qp.eq('request_type', typeFilter);
+  qp = applyStatRange(qp, range);
+  const { data: prData } = await qp;
+  const pr = prData || [];
+
+  /* --- 요약 카드 --- */
+  const totalInquiries = pr.length;
+  const approved = pr.filter(r=>['approved','arrived','contacted','purchased','abandoned'].includes(r.status)).length;
+  const rejected = pr.filter(r=>r.status==='rejected').length;
+  const purchased = pr.filter(r=>r.status==='purchased').length;
+  const convBase = pr.filter(r=>['arrived','contacted','purchased','abandoned'].includes(r.status)).length;
+  const convRate = convBase>0 ? Math.round(purchased/convBase*100) : 0;
+
+  document.getElementById('pr-stat-cards').innerHTML = `
+    <div class="stat-card"><div class="label">전체 문의</div><div class="value">${totalInquiries}건</div></div>
+    <div class="stat-card"><div class="label">발주가능 판정</div><div class="value">${approved}건</div></div>
+    <div class="stat-card"><div class="label">발주불가 판정</div><div class="value">${rejected}건</div></div>
+    <div class="stat-card"><div class="label">구매완료</div><div class="value">${purchased}건</div></div>
+    <div class="stat-card"><div class="label">입고 후 구매전환율</div><div class="value">${convRate}%</div><div class="sub">입고건 대비 구매완료 비율</div></div>
+  `;
+
+  /* --- 상품 Top 랭킹 (많이 찾는 순, 발주여부 무관) --- */
+  const counts = {};
+  pr.forEach(r=>{ const key = r.product_name.trim(); counts[key] = (counts[key]||0)+1; });
+  const ranked = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  document.getElementById('rank-product').innerHTML = ranked.length
+    ? ranked.map((r,i)=>`<li><span><span class="n">${i+1}</span>${r[0]}</span><b>${r[1]}건</b></li>`).join('')
+    : '<div class="empty">데이터 없음</div>';
+
+  /* --- 접수 사유 통계 --- */
+  const reasonCountsPr = {};
+  REASONS.product_request.forEach(ro=> reasonCountsPr[ro.label]=0 );
+  pr.forEach(r=>{ const label = reasonLabel('product_request', r.reason_id) || '미기재'; reasonCountsPr[label] = (reasonCountsPr[label]||0)+1; });
+  drawBarChart('chart-reason-product', Object.keys(reasonCountsPr), Object.values(reasonCountsPr), 'chartReasonPr');
+
+  /* --- 발주가능/불가 비율 --- */
+  drawPieChart('chart-orderable', ['발주가능','발주불가','검토중'], [approved, rejected, pr.filter(r=>r.status==='requested').length], 'chartOrderable');
+
+  /* --- 매장별 문의 건수 (전체 매장 기준 비교용 — 매장 필터와 무관하게 항상 전체 매장을 보여줌) --- */
+  let qAllStores = sb.from('resv_product_requests').select('*');
+  if(typeFilter!=='all') qAllStores = qAllStores.eq('request_type', typeFilter);
+  qAllStores = applyStatRange(qAllStores, range);
+  const { data: allStoreData } = await qAllStores;
+  const storeCounts = {};
+  STORES.forEach(s=> storeCounts[s.name]=0 );
+  (allStoreData||[]).forEach(r=>{ const name = storeName(r.store_id); storeCounts[name] = (storeCounts[name]||0)+1; });
+  drawBarChart('chart-store-product', Object.keys(storeCounts), Object.values(storeCounts), 'chartStorePr');
+
+  /* --- 미취급/품절 유형별 건수 --- */
+  const unstockedCount = pr.filter(r=>r.request_type==='unstocked').length;
+  const oosCount = pr.filter(r=>r.request_type==='out_of_stock').length;
+  drawBarChart('chart-type-product', ['미취급 상품','품절 상품'], [unstockedCount, oosCount], 'chartTypePr');
+}
+document.getElementById('pr-stat-store-filter').addEventListener('change', refreshPrStats);
+document.getElementById('pr-stat-type-filter').addEventListener('change', refreshPrStats);
+wireStatRangeControls('pr-stat', refreshPrStats);
+
+/* =========================================================
+   AS 통계 — 예약 통계와 완전히 분리된 화면
+   ========================================================= */
+let chartStoreAs;
+/* 동일 증상 집계: 추적 대상 제품은 (report_key + 불량사유)로, 그 외는 (제품명 + 메모 원문)으로 묶습니다.
+   같은 키로 묶인 건수가 많을수록 "중복 증상"이 많다는 뜻이며, 클릭하면 그 케이스들의 상세 목록이 펼쳐집니다. */
+function asSymptomKey(r){
+  if(r.defect_reason) return `${r.report_key || asProductLabel(r)} — ${r.defect_reason}`;
+  if(r.symptom_memo && r.symptom_memo.trim()) return `${asProductLabel(r)} — ${r.symptom_memo.trim()}`;
+  return null;
+}
+function toggleAsSymptomCase(id){
+  const el = document.getElementById(id);
+  if(el) el.classList.toggle('open');
+}
+function refreshAsSymptomRank(as){
+  const groups = {};
+  let uncounted = 0;
+  as.forEach(r=>{
+    const key = asSymptomKey(r);
+    if(!key){ uncounted++; return; }
+    (groups[key] = groups[key] || []).push(r);
+  });
+  const ranked = Object.entries(groups).sort((a,b)=>b[1].length-a[1].length).slice(0,12);
+  const totalEl = document.getElementById('as-symptom-total');
+  if(totalEl) totalEl.textContent = as.length ? `사유 기재 ${as.length-uncounted}건 / 전체 ${as.length}건` : '';
+  const wrap = document.getElementById('as-symptom-rank');
+  if(!wrap) return;
+  if(!ranked.length){ wrap.innerHTML = '<div class="empty">집계할 증상 데이터가 없습니다</div>'; return; }
+  const maxCount = ranked[0][1].length;
+  wrap.innerHTML = ranked.map(([key, entries], i)=>{
+    const pct = Math.max(10, Math.round(entries.length/maxCount*100));
+    const caseId = `as-case-${i}`;
+    const cases = entries.slice()
+      .sort((a,b)=> new Date(b.created_at) - new Date(a.created_at))
+      .map(r=>`
+        <div class="rank-case-item">
+          <div class="rc-top"><span>${esc(storeName(r.store_id))} · ${esc(r.customer_name||'-')}</span><span>${esc(r.received_date || fmtDate(r.created_at))}</span></div>
+          <div class="rc-sub">${esc(r.defect_detail || r.symptom_memo || '상세 메모 없음')}</div>
+        </div>`).join('');
+    return `
+      <div class="rank-bar-row clickable" onclick="toggleAsSymptomCase('${caseId}')">
+        <span class="rank-bar-no">${i+1}</span>
+        <div class="rank-bar-wrap"><div class="rank-bar-fill" style="width:${pct}%"></div><span class="rank-bar-label">${esc(key)}</span></div>
+        <span class="rank-bar-count">${entries.length}건</span>
+      </div>
+      <div class="rank-case-wrap"><div class="rank-case-list" id="${caseId}">${cases}</div></div>`;
+  }).join('');
+}
+async function refreshAsStats(){
+  if(!ME) return;
+  const storeFilter = document.getElementById('as-stat-store-filter').value;
+  const categoryFilter = document.getElementById('as-stat-category-filter').value;
+  const range = resolveStatRange('as-stat', 'received_date');
+
+  let qa = sb.from('resv_as_requests').select('*');
+  if(storeFilter!=='all') qa = qa.eq('store_id', Number(storeFilter));
+  qa = applyStatRange(qa, range);
+  const { data: asData } = await qa;
+  let as = asData || [];
+  if(categoryFilter!=='all') as = as.filter(r=>(r.category||'hq')===categoryFilter);
+
+  /* --- 요약 카드 --- */
+  const total = as.length;
+  const doneCount = as.filter(isAsDone).length;
+  const pendingCount = total - doneCount;
+  const doneRate = total>0 ? Math.round(doneCount/total*100) : 0;
+
+  document.getElementById('as-stat-cards').innerHTML = `
+    <div class="stat-card"><div class="label">전체 AS 접수</div><div class="value">${total}건</div></div>
+    <div class="stat-card"><div class="label">처리중</div><div class="value">${pendingCount}건</div></div>
+    <div class="stat-card"><div class="label">처리완료</div><div class="value">${doneCount}건</div></div>
+    <div class="stat-card"><div class="label">처리 완료율</div><div class="value">${doneRate}%</div></div>
+  `;
+
+  /* --- 중복 증상 TOP (메인 지표) --- */
+  refreshAsSymptomRank(as);
+
+  /* --- AS 접수 제품 Top 랭킹 --- */
+  const counts = {};
+  as.forEach(r=>{ const key = asProductLabel(r); counts[key] = (counts[key]||0)+1; });
+  const ranked = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  document.getElementById('rank-as-device').innerHTML = ranked.length
+    ? ranked.map((r,i)=>`<li><span><span class="n">${i+1}</span>${esc(r[0])}</span><b>${r[1]}건</b></li>`).join('')
+    : '<div class="empty">데이터 없음</div>';
+
+  /* --- 매장별 AS 접수 건수 (전체 매장 기준 비교용) --- */
+  let qAllStores = sb.from('resv_as_requests').select('*');
+  qAllStores = applyStatRange(qAllStores, range);
+  const { data: allStoreData } = await qAllStores;
+  let allStores = allStoreData || [];
+  if(categoryFilter!=='all') allStores = allStores.filter(r=>(r.category||'hq')===categoryFilter);
+  const storeCounts = {};
+  STORES.forEach(s=> storeCounts[s.name]=0 );
+  allStores.forEach(r=>{ const name = storeName(r.store_id); storeCounts[name] = (storeCounts[name]||0)+1; });
+  drawBarChart('chart-store-as', Object.keys(storeCounts), Object.values(storeCounts), 'chartStoreAs');
+}
+document.getElementById('as-stat-store-filter').addEventListener('change', refreshAsStats);
+document.getElementById('as-stat-category-filter').addEventListener('change', refreshAsStats);
+wireStatRangeControls('as-stat', refreshAsStats);
+
+/* --- 차트 공통 유틸 --- */
+function drawBarChart(canvasId, labels, values, varName){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(window[varName]) window[varName].destroy();
+  window[varName] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: values, backgroundColor:'#FFC800', borderRadius:4 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{precision:0}} } }
+  });
+}
+function drawPieChart(canvasId, labels, values, varName, colors){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(window[varName]) window[varName].destroy();
+  window[varName] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data: values, backgroundColor: colors || ['#FFC800','#e5484d','#d0d0d5'] }] },
+    options:{ plugins:{legend:{position:'bottom'}} }
+  });
+}
+
+/* =========================================================
+   설정 (직원 / 사유 관리) — 실장/관리자 전용
+   ========================================================= */
+async function refreshSettings(){
+  const { data: staff } = await sb.from('resv_staff').select('id,name,role,store_id,active').order('name');
+  document.querySelector('#staff-table tbody').innerHTML = (staff||[]).map(s=>`
+    <tr>
+      <td>${s.name}</td>
+      <td>${s.role==='manager'?'실장':(s.role==='admin'?'관리자':'직원')}</td>
+      <td>${s.store_id? storeName(s.store_id) : '전매장'}</td>
+      <td>${s.active? '사용중':'비활성'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="toggleStaff(${s.id}, ${!s.active})">${s.active?'비활성화':'활성화'}</button>
+          <button class="btn btn-sm btn-outline" onclick="resetPin(${s.id})">PIN 재설정</button></td>
+    </tr>`).join('');
+
+  renderReasonTable('reason-pr-table', REASONS.product_request, 'product_request');
+  renderReasonTable('reason-as-table', REASONS.as, 'as');
+}
+function renderReasonTable(tableId, list, type){
+  document.querySelector('#'+tableId+' tbody').innerHTML = list.map(r=>`
+    <tr><td>${r.label}</td><td>사용중</td>
+      <td><button class="btn btn-sm btn-outline" onclick="deactivateReason(${r.id})">비활성화</button></td>
+    </tr>`).join('');
+}
+document.getElementById('staff-add-btn').addEventListener('click', ()=>{
+  const storeOpts = STORES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  openModal(`
+    <h2>직원 추가</h2>
+    <label>이름</label><input id="f-name">
+    <label>PIN (4자리 숫자)</label><input id="f-pin" maxlength="4">
+    <label>권한</label>
+    <select id="f-role"><option value="staff">직원</option><option value="manager">실장</option><option value="admin">관리자</option></select>
+    <label>담당 매장 (비워두면 전매장)</label>
+    <select id="f-store"><option value="">전매장</option>${storeOpts}</select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitNewStaff()">추가</button>
+    </div>
+  `);
+});
+async function submitNewStaff(){
+  const name = document.getElementById('f-name').value.trim();
+  const pin = document.getElementById('f-pin').value.trim();
+  if(!name || !/^\d{4}$/.test(pin)){ toast('이름과 4자리 PIN을 입력해주세요'); return; }
+  const payload = {
+    name, pin,
+    role: document.getElementById('f-role').value,
+    store_id: document.getElementById('f-store').value || null
+  };
+  const { error } = await sb.from('resv_staff').insert(payload);
+  if(error){ toast('추가 실패: '+error.message); return; }
+  closeModal(); toast('직원을 추가했습니다'); refreshSettings(); loadStaffOptions();
+}
+async function toggleStaff(id, activate){
+  const { error } = await sb.from('resv_staff').update({active: activate}).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('변경했습니다'); refreshSettings(); loadStaffOptions();
+}
+function resetPin(id){
+  openModal(`
+    <h2>PIN 재설정</h2>
+    <label>새 PIN (4자리 숫자)</label><input id="f-newpin" maxlength="4">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitResetPin(${id})">저장</button>
+    </div>
+  `);
+}
+async function submitResetPin(id){
+  const pin = document.getElementById('f-newpin').value.trim();
+  if(!/^\d{4}$/.test(pin)){ toast('4자리 숫자를 입력해주세요'); return; }
+  const { error } = await sb.from('resv_staff').update({pin}).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast('PIN을 재설정했습니다');
+}
+document.getElementById('reason-pr-add-btn').addEventListener('click', ()=> addReasonPrompt('product_request'));
+document.getElementById('reason-as-add-btn').addEventListener('click', ()=> addReasonPrompt('as'));
+function addReasonPrompt(type){
+  openModal(`
+    <h2>사유 추가</h2>
+    <label>사유 이름</label><input id="f-reason-label" placeholder="예: 타 매장에서 판매중">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitNewReason('${type}')">추가</button>
+    </div>
+  `);
+}
+async function submitNewReason(type){
+  const label = document.getElementById('f-reason-label').value.trim();
+  if(!label){ toast('사유를 입력해주세요'); return; }
+  const { error } = await sb.from('resv_reason_options').insert({ type, label, sort_order: 99 });
+  if(error){ toast('추가 실패: '+error.message); return; }
+  closeModal(); toast('사유를 추가했습니다'); await loadReasons(); refreshSettings();
+}
+async function deactivateReason(id){
+  const { error } = await sb.from('resv_reason_options').update({active:false}).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('비활성화했습니다'); await loadReasons(); refreshSettings();
+}
+
+/* ================= 초기화 ================= */
+buildKeypad();
+renderPinDots();
+loadStaffOptions();
+tryAutoLogin();
+</script>
+</body>
+</html>

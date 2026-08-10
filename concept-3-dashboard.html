@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위베이프 예약관리 — 레이아웃 컨셉 3. 오늘의 할일 대시보드형</title>
+<style>
+:root{
+  --bg:#ffffff; --sidebar-bg:#fafafa; --card:#ffffff; --border:#eaeaec; --col-bg:#f7f7f8;
+  --text:#111; --sub:#8a8a90; --accent:#FFC800; --accent-ink:#111;
+  --radius:10px; --radius-sm:8px; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:#e9e9ec;}
+button{font-family:inherit;cursor:pointer;}
+
+.controlbar{position:sticky;top:0;z-index:50;background:#111;color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;}
+.controlbar h1{font-size:15px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;}
+.controlbar h1 .dot{width:9px;height:9px;background:var(--accent);border-radius:50%;}
+.device-picker{display:flex;gap:6px;}
+.device-picker button{padding:8px 14px;border-radius:8px;border:1.5px solid #444;background:#1c1c1f;color:#ccc;font-size:12.5px;font-weight:700;}
+.device-picker button.active{background:#fff;color:#111;border-color:#fff;}
+.concept-desc{max-width:1160px;margin:16px auto 0;padding:0 20px;font-size:13px;color:#444;}
+.concept-desc b{color:#111;}
+.concept-nav{max-width:1160px;margin:10px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;}
+.concept-nav a{font-size:12px;padding:6px 12px;border-radius:14px;background:#fff;border:1px solid #ddd;color:#555;text-decoration:none;font-weight:700;}
+.concept-nav a.current{background:#111;color:#FFC800;border-color:#111;}
+
+.stage-wrap{display:flex;justify-content:center;padding:20px;}
+.stage{width:100%;max-width:1160px;transition:max-width .25s ease;}
+.stage.mobile{max-width:390px;}
+.stage.mobile .device-chrome{border:10px solid #111;border-radius:34px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);position:relative;}
+.stage.mobile .device-chrome::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:20px;background:#111;border-radius:0 0 14px 14px;z-index:45;}
+.stage:not(.mobile) .device-chrome{border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.10);}
+
+.login-mini{background:#fff;padding:20px;border-bottom:1px solid var(--border);}
+.login-mini .title{font-weight:800;font-size:14px;margin-bottom:2px;}
+.login-mini .sub{font-size:11.5px;color:var(--sub);margin-bottom:12px;}
+.login-row{display:flex;gap:8px;align-items:center;}
+.login-row select{flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);}
+.pin-dots{display:flex;gap:7px;}
+.pin-dots span{width:9px;height:9px;border-radius:50%;border:2px solid #111;}
+.pin-dots span.filled{background:var(--accent);border-color:var(--accent);}
+
+.app-shell{display:flex;background:var(--bg);min-height:640px;position:relative;}
+.sidebar{width:196px;flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:16px 10px;display:flex;flex-direction:column;}
+.sidebar .brand{font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:7px;margin:2px 6px 18px;}
+.sidebar .brand .dot{width:7px;height:7px;background:var(--accent);border-radius:50%;}
+.sidebar nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+.sidebar nav button{text-align:left;padding:10px 11px;border-radius:8px;border:none;border-left:3px solid transparent;background:none;font-size:12.5px;font-weight:700;color:var(--sub);}
+.sidebar nav button.active{background:#fff;color:var(--text);border-left-color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.sidebar .who{margin-top:auto;padding:12px 8px 4px;border-top:1px solid var(--border);font-size:11px;color:var(--sub);}
+.sidebar .who b{display:block;color:var(--text);font-size:12.5px;margin-bottom:2px;}
+.sidebar .who button{margin-top:8px;width:100%;padding:7px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:11px;color:#555;}
+
+.mobile-topbar{display:none;}
+.stage.mobile .mobile-topbar{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:#fff;}
+.stage.mobile .mobile-topbar button.hamburger{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:15px;}
+.stage.mobile .mobile-topbar .title{font-weight:800;font-size:13px;}
+.stage.mobile .sidebar{position:absolute;left:0;top:0;bottom:0;height:100%;z-index:40;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 12px rgba(0,0,0,.15);}
+.stage.mobile .sidebar.open{transform:translateX(0);}
+.drawer-overlay{display:none;}
+.stage.mobile .drawer-overlay.open{display:block;position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:35;}
+
+.main-area{flex:1;min-width:0;padding:18px;}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border:none;padding:8px 13px;border-radius:8px;font-weight:800;font-size:12px;}
+.btn-outline{background:#fff;border:1.5px solid var(--border);padding:8px 13px;border-radius:8px;font-size:12px;font-weight:700;color:#333;}
+
+.greet{font-size:16px;font-weight:800;margin-bottom:2px;}
+.greet-sub{font-size:12.5px;color:var(--sub);margin-bottom:18px;}
+
+.todo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:22px;}
+.todo-card{background:#fff;border:1.5px solid #eee;border-radius:14px;padding:16px;}
+.todo-card.warn{border-color:#f3b7b9;background:#fff7f7;}
+.todo-card .n{font-size:26px;font-weight:800;}
+.todo-card .n .unit{font-size:13px;font-weight:700;color:var(--sub);}
+.todo-card .l{font-size:12.5px;font-weight:700;margin:4px 0 12px;}
+.todo-card.warn .l{color:#c92a2a;}
+.todo-card button{width:100%;}
+
+.section-h{font-size:13px;font-weight:800;margin:22px 0 10px;color:#333;}
+.feed{background:#fff;border:1px solid #eee;border-radius:12px;padding:6px 16px;}
+.feed .item{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid #f4f4f5;font-size:12.5px;}
+.feed .item:last-child{border-bottom:none;}
+.feed .item .t{color:var(--sub);width:80px;flex-shrink:0;}
+.feed .item b{font-weight:700;}
+
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:22px;}
+.stat{background:var(--card);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);border:1px solid #eee;}
+.stat .l{font-size:10.5px;color:var(--sub);margin-bottom:4px;}
+.stat .v{font-size:19px;font-weight:800;}
+</style>
+</head>
+<body>
+
+<div class="controlbar">
+  <h1><span class="dot"></span>위베이프 예약관리 — 레이아웃 컨셉 3. 오늘의 할일 대시보드형</h1>
+  <div class="device-picker" id="device-picker">
+    <button data-d="pc" class="active">PC 화면</button>
+    <button data-d="mobile">모바일 화면</button>
+  </div>
+</div>
+
+<div class="concept-desc"><b>오늘의 할일 대시보드형</b> — 로그인하면 바로 "지금 확인해야 할 것"부터 보여줍니다. 검토대기·연락필요·장기 미연락 건을 큰 카드로 앞세워서, 실장님이 매일 아침 무엇부터 처리할지 한눈에 알 수 있습니다. 전체 목록은 좌측 메뉴에서 따로 들어갑니다.</div>
+<div class="concept-nav">
+  <a href="concept-1-kanban.html">1. 칸반보드형</a>
+  <a href="concept-2-masterdetail.html">2. 목록+상세패널형</a>
+  <a href="concept-3-dashboard.html" class="current">3. 오늘의 할일 대시보드형</a>
+  <a href="concept-4-timeline.html">4. 타임라인형</a>
+  <a href="concept-5-multipanel.html">5. 멀티패널 통합형</a>
+</div>
+
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="device-chrome">
+
+      <div class="login-mini">
+        <div class="title">위베이프 예약관리</div>
+        <div class="sub">이름 선택 + PIN 4자리로 로그인</div>
+        <div class="login-row">
+          <select><option>이름 선택 — 김민지</option></select>
+          <div class="pin-dots"><span class="filled"></span><span class="filled"></span><span></span><span></span></div>
+        </div>
+      </div>
+
+      <div class="mobile-topbar">
+        <button class="hamburger" id="hamburger-btn">☰</button>
+        <span class="title">홈</span>
+      </div>
+
+      <div class="app-shell">
+        <div class="drawer-overlay" id="drawer-overlay"></div>
+        <div class="sidebar" id="sidebar">
+          <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+          <nav>
+            <button class="active">홈</button>
+            <button>미취급 상품 예약</button>
+            <button>AS 접수</button>
+            <button>예약 통계</button>
+            <button>AS 통계</button>
+            <button>설정</button>
+          </nav>
+          <div class="who">
+            <b>김민지</b>실장 · 연수점
+            <button>로그아웃</button>
+          </div>
+        </div>
+
+        <div class="main-area">
+          <div class="greet">안녕하세요, 김민지님</div>
+          <div class="greet-sub">오늘 확인이 필요한 항목부터 정리해드릴게요</div>
+
+          <div class="todo-grid">
+            <div class="todo-card">
+              <div class="n">2<span class="unit">건</span></div>
+              <div class="l">검토대기 — 발주 가능 여부 확인 필요</div>
+              <button class="btn-primary">지금 검토하기</button>
+            </div>
+            <div class="todo-card">
+              <div class="n">1<span class="unit">건</span></div>
+              <div class="l">입고완료 — 고객 연락 필요</div>
+              <button class="btn-outline">연락 기록하기</button>
+            </div>
+            <div class="todo-card warn">
+              <div class="n">1<span class="unit">건</span></div>
+              <div class="l">3일 이상 연락이 안 되고 있는 건</div>
+              <button class="btn-outline">확인하기</button>
+            </div>
+          </div>
+
+          <div class="section-h">최근 활동</div>
+          <div class="feed">
+            <div class="item"><span class="t">10:20</span><span><b>김민지</b>님이 RELX 파이 맥스 문의를 등록했습니다</span></div>
+            <div class="item"><span class="t">어제</span><span><b>실장</b>이 WAKA 쥬피터 발주가능으로 처리했습니다</span></div>
+            <div class="item"><span class="t">8/6</span><span>RELX 크리에이터 — 고객 정OO 구매완료</span></div>
+            <div class="item"><span class="t">8/5</span><span>단종 액상 A — 실장이 발주불가로 처리했습니다</span></div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat"><div class="l">전체 문의</div><div class="v">42건</div></div>
+            <div class="stat"><div class="l">발주가능</div><div class="v">27건</div></div>
+            <div class="stat"><div class="l">구매전환율</div><div class="v">61%</div></div>
+            <div class="stat"><div class="l">AS 접수</div><div class="v">9건</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('device-picker').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#device-picker button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('stage').classList.toggle('mobile', b.dataset.d === 'mobile');
+});
+document.getElementById('hamburger-btn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+});
+document.getElementById('drawer-overlay').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+});
+</script>
+</body>
+</html>

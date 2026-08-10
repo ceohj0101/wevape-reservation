@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 3 — 오늘 홈 위젯 대시보드</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --black:#111111; --white:#ffffff;
+    --bg:#F6F6F4; --border:#eceae4; --gray:#8a8a90; --red:#e5484d; --green:#2f9e58;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;}
+  .concept-badge{position:fixed;top:14px;left:14px;background:var(--black);color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;z-index:100;letter-spacing:.3px;}
+
+  /* ===== 홈: 오늘 위젯 대시보드 ===== */
+  #home{max-width:760px;margin:0 auto;padding:60px 24px 80px;}
+  .home-head{margin-bottom:26px;}
+  .home-head .greet{font-size:14px;color:var(--gray);font-weight:600;}
+  .home-head h1{font-size:26px;font-weight:800;margin:6px 0 0;letter-spacing:-.5px;}
+
+  .hero{background:linear-gradient(160deg,#1b1b1b,#000);color:#fff;border-radius:26px;padding:28px 26px;cursor:pointer;position:relative;overflow:hidden;margin-bottom:22px;transition:transform .18s;}
+  .hero:hover{transform:translateY(-3px);}
+  .hero::after{content:'';position:absolute;right:-40px;top:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,200,0,.35),transparent 70%);}
+  .hero .tag{font-size:11px;font-weight:800;color:var(--yellow);background:rgba(255,200,0,.15);display:inline-block;padding:4px 10px;border-radius:20px;margin-bottom:14px;}
+  .hero h2{font-size:24px;font-weight:800;margin:0 0 18px;letter-spacing:-.4px;}
+  .hero .row{display:flex;gap:28px;}
+  .hero .row .n{font-size:32px;font-weight:800;line-height:1;}
+  .hero .row .n.warn{color:#ff8a8a;}
+  .hero .row .l{font-size:11.5px;color:#9a9a9a;font-weight:600;margin-top:6px;}
+  .hero .enter{position:absolute;right:26px;bottom:26px;background:var(--yellow);color:#3a2c00;font-weight:800;font-size:12.5px;padding:9px 16px;border-radius:20px;}
+
+  .sec-title{font-size:13px;font-weight:800;color:var(--gray);margin:0 0 12px;text-transform:uppercase;letter-spacing:.4px;}
+  .widget-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;margin-bottom:30px;}
+  .widget{flex:0 0 148px;background:var(--white);border-radius:20px;padding:16px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04);transition:transform .15s;}
+  .widget:hover{transform:translateY(-3px);}
+  .widget .wname{font-size:12.5px;font-weight:800;margin-bottom:14px;}
+  .widget .wbars{display:flex;align-items:flex-end;gap:4px;height:34px;margin-bottom:10px;}
+  .widget .wbars i{flex:1;background:var(--border);border-radius:3px;}
+  .widget .wbars i.on{background:var(--yellow);}
+  .widget .wbars i.warn{background:var(--red);}
+  .widget .wcount{font-size:11px;color:var(--gray);font-weight:700;}
+  .widget .wcount b{color:var(--black);}
+  .widget .wcount.warn b{color:var(--red);}
+
+  .today-note{font-size:12px;color:var(--gray);text-align:center;margin-top:10px;}
+
+  /* ===== 매장 상세 진입 화면 ===== */
+  #store-view{display:none;max-width:760px;margin:0 auto;padding:0 24px 80px;}
+  .store-topbar{position:sticky;top:0;background:rgba(246,246,244,.88);backdrop-filter:blur(14px);padding:20px 0 16px;z-index:10;}
+  .back-btn{display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--gray);font-size:13.5px;font-weight:700;cursor:pointer;padding:6px 0;margin-bottom:6px;}
+  .back-btn:hover{color:var(--black);}
+  .store-topbar h2{font-size:24px;font-weight:800;margin:0;letter-spacing:-.4px;}
+
+  .seg{display:inline-flex;background:#ecebe7;border-radius:12px;padding:3px;margin:14px 0 20px;}
+  .seg button{border:none;background:none;padding:9px 20px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--gray);cursor:pointer;}
+  .seg button.active{background:var(--white);color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px;}
+  .stat-card{background:var(--white);border-radius:18px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .stat-card .label{font-size:12px;color:var(--gray);font-weight:600;}
+  .stat-card .value{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.5px;}
+  .stat-card.warn .value{color:var(--red);}
+
+  .list{background:var(--white);border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .list .row{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border);}
+  .list .row:last-child{border-bottom:none;}
+  .row .rtitle{font-weight:700;font-size:14px;}
+  .row .rmeta{font-size:12px;color:var(--gray);margin-top:3px;}
+  .pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;background:#f0f0ee;color:#555;}
+  .pill.overdue{background:#fdeaea;color:var(--red);}
+</style>
+</head>
+<body>
+<div class="concept-badge">시안 3 · 오늘 홈 위젯 대시보드</div>
+
+<div id="home">
+  <div class="home-head">
+    <div class="greet">2026년 8월 10일 · 신재현 님</div>
+    <h1>오늘 홈</h1>
+  </div>
+
+  <div class="hero" onclick="enterStore(1)">
+    <span class="tag">내 매장</span>
+    <h2>구월로데오</h2>
+    <div class="row">
+      <div><div class="n warn">3</div><div class="l">AS 처리중 (최대 5일째)</div></div>
+      <div><div class="n">2</div><div class="l">예약 문의 대기</div></div>
+    </div>
+    <div class="enter">들어가기 →</div>
+  </div>
+
+  <div class="sec-title">다른 매장</div>
+  <div class="widget-scroll" id="widget-scroll"></div>
+  <div class="today-note">위젯을 탭하면 그 매장 화면으로 바로 들어갑니다. 매장을 합쳐서 보는 화면은 없습니다.</div>
+</div>
+
+<div id="store-view">
+  <div class="store-topbar">
+    <button class="back-btn" onclick="goHome()">← 오늘 홈으로</button>
+    <h2 id="sv-title">매장명</h2>
+  </div>
+  <div class="seg">
+    <button class="active" data-t="as" onclick="setTab('as')">AS 접수</button>
+    <button data-t="pr" onclick="setTab('pr')">예약 현황</button>
+  </div>
+  <div id="sv-body"></div>
+</div>
+
+<script>
+const STORES = [
+  {id:1,name:'구월로데오',as:4,warn:true,pr:2,mine:true},
+  {id:2,name:'연수',as:2,warn:false,pr:1},
+  {id:3,name:'인천공항',as:1,warn:false,pr:0},
+  {id:4,name:'논현',as:3,warn:true,pr:3},
+  {id:5,name:'구월길병원',as:0,warn:false,pr:1},
+  {id:6,name:'계산',as:2,warn:false,pr:0},
+  {id:7,name:'부천상동',as:5,warn:true,pr:2},
+  {id:8,name:'부천중동',as:1,warn:false,pr:0},
+  {id:9,name:'을지로',as:0,warn:false,pr:1},
+  {id:10,name:'검단',as:2,warn:false,pr:0},
+];
+const AS_SAMPLE = [
+  {p:'그래피티C · 배터리[블랙]',c:'김고객',days:5,overdue:true,status:'제조사 발송·검사중'},
+  {p:'롤리팟-J · 블루',c:'이고객',days:2,overdue:false,status:'로데오점 접수확인'},
+  {p:'그래피티3 · 핑크',c:'박고객',days:0,overdue:false,status:'접수완료'},
+];
+const PR_SAMPLE = [
+  {p:'RELX 파이 맥스 머스캣',c:'최고객',status:'입고완료 · 연락대기'},
+  {p:'쥴 브리즈 민트',c:'정고객',status:'검토중'},
+];
+function renderWidgets(){
+  const others = STORES.filter(s=>!s.mine);
+  document.getElementById('widget-scroll').innerHTML = others.map(s=>{
+    const bars = Array.from({length:5}, (_,i)=> i < Math.min(s.as,5) ? (s.warn && i===Math.min(s.as,5)-1 ? 'on warn' : 'on') : '').map(c=>`<i class="${c}"></i>`).join('');
+    return `<div class="widget" onclick="enterStore(${s.id})">
+      <div class="wname">${s.name}</div>
+      <div class="wbars">${bars}</div>
+      <div class="wcount ${s.warn?'warn':''}">AS <b>${s.as}</b>건 · 예약 <b>${s.pr}</b>건</div>
+    </div>`;
+  }).join('');
+}
+let currentTab='as';
+function enterStore(id){
+  const s = STORES.find(x=>x.id===id);
+  document.getElementById('home').style.display='none';
+  document.getElementById('store-view').style.display='block';
+  document.getElementById('sv-title').textContent = s.name;
+  setTab('as');
+}
+function goHome(){
+  document.getElementById('home').style.display='block';
+  document.getElementById('store-view').style.display='none';
+}
+function setTab(t){
+  currentTab = t;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
+  const body = document.getElementById('sv-body');
+  if(t==='as'){
+    body.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><div class="label">전체 AS</div><div class="value">4건</div></div>
+        <div class="stat-card warn"><div class="label">처리중 (최대 5일째)</div><div class="value">3건</div></div>
+        <div class="stat-card"><div class="label">처리완료</div><div class="value">1건</div></div>
+      </div>
+      <div class="list">${AS_SAMPLE.map(r=>`
+        <div class="row">
+          <div><div class="rtitle">${r.p}</div><div class="rmeta">${r.c} · ${r.status}</div></div>
+          <span class="pill ${r.overdue?'overdue':''}">${r.days===0?'오늘 접수':r.days+'일째'}</span>
+        </div>`).join('')}</div>`;
+  } else {
+    body.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><div class="label">전체 문의</div><div class="value">2건</div></div>
+        <div class="stat-card"><div class="label">입고완료</div><div class="value">1건</div></div>
+      </div>
+      <div class="list">${PR_SAMPLE.map(r=>`
+        <div class="row">
+          <div><div class="rtitle">${r.p}</div><div class="rmeta">${r.c}</div></div>
+          <span class="pill">${r.status}</span>
+        </div>`).join('')}</div>`;
+  }
+}
+renderWidgets();
+</script>
+</body>
+</html>

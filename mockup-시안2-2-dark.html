@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위베이프 예약관리 — 시안 2 (다크 대시보드)</title>
+<style>
+:root{
+  --sys-black:#111;
+  --sys-yellow:#FFC800;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:#e9e9ec;}
+
+/* ===== 컨트롤 바 ===== */
+.controlbar{position:sticky;top:0;z-index:50;background:var(--sys-black);color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;}
+.controlbar h1{font-size:15px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;}
+.controlbar h1 .dot{width:9px;height:9px;background:var(--sys-yellow);border-radius:50%;}
+.theme-picker{display:flex;gap:6px;flex-wrap:wrap;}
+.theme-picker button{padding:8px 14px;border-radius:20px;border:1.5px solid #444;background:#1c1c1f;color:#ccc;font-size:12.5px;font-weight:700;cursor:pointer;}
+.theme-picker button.active{background:var(--sys-yellow);color:#111;border-color:var(--sys-yellow);}
+.device-picker{display:flex;gap:6px;}
+.device-picker button{padding:8px 14px;border-radius:8px;border:1.5px solid #444;background:#1c1c1f;color:#ccc;font-size:12.5px;font-weight:700;cursor:pointer;}
+.device-picker button.active{background:#fff;color:#111;border-color:#fff;}
+
+.theme-desc{max-width:1160px;margin:16px auto 0;padding:0 20px;font-size:13px;color:#444;}
+.theme-desc b{color:#111;}
+
+/* ===== 무대(프리뷰 프레임) ===== */
+.stage-wrap{display:flex;justify-content:center;padding:20px;}
+.stage{width:100%;max-width:1160px;transition:max-width .25s ease;}
+.stage.mobile{max-width:380px;}
+.stage.mobile .device-chrome{border:10px solid #111;border-radius:34px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);position:relative;}
+.stage.mobile .device-chrome::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:20px;background:#111;border-radius:0 0 14px 14px;z-index:5;}
+.stage:not(.mobile) .device-chrome{border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.10);}
+
+/* ===================================================================
+   공통 목업 마크업에 적용되는 테마별 변수 (시안 1~4는 변수만 다르게)
+   =================================================================== */
+.app{ background:var(--bg); color:var(--text); font-size:14px; }
+.app .login-mini{ background:var(--panel); padding:22px; border-bottom:1px solid var(--border); }
+.app .login-mini .title{font-weight:800;font-size:15px;margin-bottom:2px;}
+.app .login-mini .sub{font-size:12px;color:var(--sub);margin-bottom:14px;}
+.app .login-row{display:flex;gap:8px;align-items:center;}
+.app .login-row select{flex:1;padding:9px 10px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--card);color:var(--text);}
+.app .pin-dots{display:flex;gap:8px;}
+.app .pin-dots span{width:10px;height:10px;border-radius:50%;border:2px solid var(--accent-ink);}
+.app .pin-dots span.filled{background:var(--accent);border-color:var(--accent);}
+
+.app header.topbar{background:var(--header-bg);color:var(--header-text);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+.app header.topbar .brand{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;}
+.app header.topbar .brand .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;}
+.app header.topbar .who{font-size:11.5px;opacity:.8;}
+
+.app nav.tabs{display:flex;gap:2px;background:var(--panel);padding:0 14px;border-bottom:1px solid var(--border);overflow-x:auto;}
+.app nav.tabs button{padding:11px 12px;border:none;background:none;font-size:12.5px;font-weight:700;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap;}
+.app nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
+
+.app main{padding:16px;}
+.app .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:8px;flex-wrap:wrap;}
+.app .toolbar select{padding:7px 9px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:12px;}
+.app .btn-primary{background:var(--accent);color:var(--accent-ink);border:none;padding:9px 14px;border-radius:var(--radius-sm);font-weight:800;font-size:12.5px;}
+
+.app .board{display:grid;grid-auto-flow:column;grid-auto-columns:180px;gap:10px;overflow-x:auto;padding-bottom:6px;}
+.app .col{background:var(--col-bg);border-radius:var(--radius);padding:8px;}
+.app .col h3{font-size:11.5px;margin:2px 4px 8px;color:var(--sub);display:flex;justify-content:space-between;}
+.app .card{background:var(--card);border-radius:var(--radius-sm);padding:10px;margin-bottom:8px;box-shadow:var(--shadow);border:var(--card-border);border-left:var(--card-accent-border);}
+.app .card .pname{font-weight:800;font-size:12.5px;margin-bottom:3px;}
+.app .card .meta{font-size:10.8px;color:var(--sub);line-height:1.55;}
+.app .card .tag{display:inline-block;font-size:9.5px;background:var(--tag-bg);color:var(--tag-text);border-radius:5px;padding:2px 6px;margin-top:6px;font-weight:700;}
+
+.app .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:18px;}
+.app .stat{background:var(--card);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);border:var(--card-border);}
+.app .stat .l{font-size:10.5px;color:var(--sub);margin-bottom:4px;}
+.app .stat .v{font-size:19px;font-weight:800;}
+
+.app .rank{background:var(--card);border-radius:var(--radius);padding:12px 14px;margin-top:10px;box-shadow:var(--shadow);border:var(--card-border);}
+.app .rank h4{font-size:12px;margin:0 0 8px;color:var(--sub);}
+.app .rank .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px;}
+.app .rank .bar-row .name{width:92px;flex-shrink:0;}
+.app .rank .bar-track{flex:1;height:8px;background:var(--col-bg);border-radius:6px;overflow:hidden;}
+.app .rank .bar-fill{height:100%;background:var(--accent);}
+.app .rank .cnt{width:26px;text-align:right;color:var(--sub);}
+
+/* ---------- 테마 1: 미니멀 화이트 ---------- */
+[data-theme="1"]{
+  --bg:#ffffff; --panel:#ffffff; --card:#ffffff; --border:#eaeaec; --col-bg:#f7f7f8;
+  --text:#111; --sub:#8a8a90; --accent:#FFC800; --accent-ink:#111;
+  --header-bg:#ffffff; --header-text:#111;
+  --radius:10px; --radius-sm:8px; --shadow:0 1px 2px rgba(0,0,0,.04);
+  --card-border:1px solid #eee; --card-accent-border:none;
+  --tag-bg:#f2f2f3; --tag-text:#555;
+}
+[data-theme="1"] .app nav.tabs{border-bottom:1px solid #eee;}
+
+/* ---------- 테마 2: 다크 대시보드 ---------- */
+[data-theme="2"]{
+  --bg:#0d0d0f; --panel:#17171a; --card:#1c1c20; --border:#2a2a2e; --col-bg:#141417;
+  --text:#f2f2f2; --sub:#98989f; --accent:#FFD400; --accent-ink:#111;
+  --header-bg:#000000; --header-text:#fff;
+  --radius:12px; --radius-sm:9px; --shadow:0 0 0 1px #26262a, 0 6px 16px rgba(0,0,0,.4);
+  --card-border:1px solid #2a2a2e; --card-accent-border:3px solid var(--accent);
+  --tag-bg:#2a2a10; --tag-text:#FFD400;
+}
+
+/* ---------- 테마 3: 옐로우 팝 ---------- */
+[data-theme="3"]{
+  --bg:#FFFDF3; --panel:#FFC800; --card:#ffffff; --border:#111; --col-bg:#FFF6D6;
+  --text:#111; --sub:#6b6144; --accent:#111; --accent-ink:#FFC800;
+  --header-bg:#FFC800; --header-text:#111;
+  --radius:16px; --radius-sm:12px; --shadow:none;
+  --card-border:2px solid #111; --card-accent-border:none;
+  --tag-bg:#111; --tag-text:#FFC800;
+}
+[data-theme="3"] .app nav.tabs{background:#FFC800;border-bottom:2px solid #111;}
+[data-theme="3"] .app nav.tabs button.active{color:#111;border-bottom-color:#111;}
+[data-theme="3"] .app .btn-primary{border:2px solid #111;}
+
+/* ---------- 테마 4: 소프트 카드 (토스 라이트, 기존 POS 방향과 동일 톤) ---------- */
+[data-theme="4"]{
+  --bg:#F4F5F7; --panel:#ffffff; --card:#ffffff; --border:transparent; --col-bg:#eceef1;
+  --text:#1c1c1e; --sub:#8b8d93; --accent:#FFC800; --accent-ink:#111;
+  --header-bg:#ffffff; --header-text:#111;
+  --radius:18px; --radius-sm:14px; --shadow:0 4px 14px rgba(20,20,30,.06);
+  --card-border:none; --card-accent-border:none;
+  --tag-bg:#FFF3CC; --tag-text:#8a6d00;
+}
+[data-theme="4"] .app .btn-primary{border-radius:999px;padding:10px 16px;}
+[data-theme="4"] .app .card{border-radius:16px;}
+
+/* ---------- 테마 5는 구조 자체가 달라서 별도 블록으로 구현 ---------- */
+[data-theme="5"]{
+  --bg:#fafafa; --panel:#ffffff; --card:#ffffff; --border:#e6e6e8; --col-bg:#f2f2f3;
+  --text:#1a1a1a; --sub:#8a8a90; --accent:#FFC800; --accent-ink:#111;
+  --header-bg:#ffffff; --header-text:#111;
+  --radius:10px; --radius-sm:8px; --shadow:none;
+  --card-border:1px solid #eee; --card-accent-border:none;
+  --tag-bg:#f2f2f3; --tag-text:#555;
+}
+.app .table-scroll{overflow-x:auto;border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04);}
+.app .compact-table{width:100%;min-width:640px;border-collapse:collapse;background:var(--card);}
+.app .compact-table th{background:var(--col-bg);text-align:left;font-size:10.5px;color:var(--sub);padding:8px 10px;font-weight:700;white-space:nowrap;}
+.app .compact-table td{padding:9px 10px;font-size:11.5px;border-top:1px solid var(--border);white-space:nowrap;}
+.app .compact-table .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;}
+.app .chips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.app .chips span{font-size:11px;padding:5px 10px;border-radius:14px;background:var(--col-bg);color:var(--sub);font-weight:700;}
+.app .chips span.on{background:var(--accent);color:var(--accent-ink);}
+</style>
+</head>
+<body>
+
+<div class="controlbar">
+  <h1><span class="dot"></span>위베이프 예약관리 — 시안 2. 다크 대시보드</h1>
+  <div class="device-picker" id="device-picker">
+    <button data-d="pc" class="active">PC 화면</button>
+    <button data-d="mobile">모바일 화면</button>
+  </div>
+</div>
+
+<div class="theme-desc" id="theme-desc"></div>
+
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+    <div class="device-chrome">
+      <div class="app" data-theme="2" id="app-root">
+
+        <!-- 로그인 미리보기 -->
+        <div class="login-mini">
+          <div class="title">위베이프 예약관리</div>
+          <div class="sub">이름 선택 + PIN 4자리로 로그인</div>
+          <div class="login-row">
+            <select><option>이름 선택 — 김민지</option></select>
+            <div class="pin-dots"><span class="filled"></span><span class="filled"></span><span></span><span></span></div>
+          </div>
+        </div>
+
+        <!-- 헤더 -->
+        <header class="topbar">
+          <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+          <div class="who">김민지 · 실장 · 연수점</div>
+        </header>
+
+        <!-- 탭 -->
+        <nav class="tabs">
+          <button class="active">미취급 상품 예약</button>
+          <button>AS 접수</button>
+          <button>통계</button>
+          <button>설정</button>
+        </nav>
+
+        <main>
+          <div class="toolbar">
+            <select><option>전체 매장</option></select>
+            <button class="btn-primary">+ 새 문의 등록</button>
+          </div>
+
+          <!-- 칸반보드 (시안 1~4 공통 마크업) -->
+          <div class="board" id="board-kanban">
+            <div class="col">
+              <h3>문의접수 <span>2</span></h3>
+              <div class="card">
+                <div class="pname">RELX 파이 맥스</div>
+                <div class="meta">연수점 · 김OO · 010-12**-5678<br>지인 추천</div>
+                <span class="tag">검토대기</span>
+              </div>
+              <div class="card">
+                <div class="pname">에일리 프리미엄</div>
+                <div class="meta">연수점 · 박OO · 010-98**-1122<br>SNS에서 봄</div>
+                <span class="tag">검토대기</span>
+              </div>
+            </div>
+            <div class="col">
+              <h3>발주가능 <span>1</span></h3>
+              <div class="card">
+                <div class="pname">WAKA 쥬피터</div>
+                <div class="meta">연수점 · 이OO · 010-33**-9090<br>가격 비교</div>
+                <span class="tag">발주가능</span>
+              </div>
+            </div>
+            <div class="col">
+              <h3>입고완료 <span>1</span></h3>
+              <div class="card">
+                <div class="pname">RELX 크리에이터</div>
+                <div class="meta">연수점 · 최OO · 010-77**-4321<br>연락 대기중</div>
+                <span class="tag">연락필요</span>
+              </div>
+            </div>
+            <div class="col">
+              <h3>구매완료 <span>1</span></h3>
+              <div class="card">
+                <div class="pname">아이코스 일루마</div>
+                <div class="meta">연수점 · 정OO<br>8/6 구매완료</div>
+                <span class="tag">완료</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 컴팩트 테이블형 (시안 5 전용) -->
+          <div id="board-table" style="display:none;">
+            <div class="chips">
+              <span class="on">전체 8</span><span>문의접수 2</span><span>발주가능 1</span><span>입고완료 1</span><span>연락완료 1</span><span>구매완료 2</span><span>발주불가 1</span>
+            </div>
+            <div class="table-scroll">
+            <table class="compact-table">
+              <thead><tr><th>상태</th><th>제품명</th><th>매장</th><th>고객</th><th>연락처</th><th>사유</th><th>접수일</th></tr></thead>
+              <tbody>
+                <tr><td><span class="dot" style="background:#f1a900"></span>검토대기</td><td>RELX 파이 맥스</td><td>연수점</td><td>김OO</td><td>010-12**-5678</td><td>지인 추천</td><td>8/8 10:20</td></tr>
+                <tr><td><span class="dot" style="background:#f1a900"></span>검토대기</td><td>에일리 프리미엄</td><td>연수점</td><td>박OO</td><td>010-98**-1122</td><td>SNS에서 봄</td><td>8/8 09:41</td></tr>
+                <tr><td><span class="dot" style="background:#2f9e44"></span>발주가능</td><td>WAKA 쥬피터</td><td>구월로데오</td><td>이OO</td><td>010-33**-9090</td><td>가격 비교</td><td>8/7 15:02</td></tr>
+                <tr><td><span class="dot" style="background:#1c7ed6"></span>입고완료</td><td>RELX 크리에이터</td><td>논현점</td><td>최OO</td><td>010-77**-4321</td><td>단순 문의</td><td>8/5 13:11</td></tr>
+                <tr><td><span class="dot" style="background:#666"></span>구매완료</td><td>아이코스 일루마</td><td>연수점</td><td>정OO</td><td>010-55**-7777</td><td>타 매장 판매중</td><td>8/3 11:00</td></tr>
+                <tr><td><span class="dot" style="background:#e5484d"></span>발주불가</td><td>단종 액상 A</td><td>계산점</td><td>-</td><td>-</td><td>단순 문의</td><td>8/2 16:30</td></tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+
+          <!-- 통계 미리보기 -->
+          <div class="stat-row">
+            <div class="stat"><div class="l">전체 문의</div><div class="v">42건</div></div>
+            <div class="stat"><div class="l">발주가능</div><div class="v">27건</div></div>
+            <div class="stat"><div class="l">구매전환율</div><div class="v">61%</div></div>
+            <div class="stat"><div class="l">AS 접수</div><div class="v">9건</div></div>
+          </div>
+          <div class="rank">
+            <h4>미취급 상품 Top (많이 찾는 순)</h4>
+            <div class="bar-row"><span class="name">RELX 파이 맥스</span><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><span class="cnt">9</span></div>
+            <div class="bar-row"><span class="name">WAKA 쥬피터</span><div class="bar-track"><div class="bar-fill" style="width:70%"></div></div><span class="cnt">7</span></div>
+            <div class="bar-row"><span class="name">에일리 프리미엄</span><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div><span class="cnt">5</span></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('theme-desc').innerHTML = "<b>다크 대시보드</b> — 어두운 배경에 노란 포인트가 도드라지는 스타일입니다. 하루 종일 켜두는 매장 모니터·태블릿에서 눈부심이 적고, '관제판' 느낌이라 데이터가 많아 보여도 안 답답합니다.";
+document.getElementById('board-kanban').style.display = 'grid';
+document.getElementById('board-table').style.display = 'none';
+document.getElementById('device-picker').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#device-picker button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('stage').classList.toggle('mobile', b.dataset.d === 'mobile');
+});
+</script>
+</body>
+</html>

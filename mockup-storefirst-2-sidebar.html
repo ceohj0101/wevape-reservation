@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 2 — 사이드바 매장 스위처</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --black:#111111; --white:#ffffff;
+    --bg:#F6F6F4; --border:#eceae4; --gray:#8a8a90; --red:#e5484d; --green:#2f9e58;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;}
+  .concept-badge{position:fixed;top:14px;left:230px;background:var(--black);color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;z-index:100;letter-spacing:.3px;}
+
+  .shell{display:flex;min-height:100vh;}
+
+  /* ===== 사이드바: 매장 스위처가 메인 ===== */
+  .sidebar{width:236px;flex-shrink:0;background:#fbfaf7;border-right:1px solid var(--border);padding:22px 14px;display:flex;flex-direction:column;height:100vh;position:sticky;top:0;}
+  .brand{font-size:14px;font-weight:800;padding:0 6px 20px;letter-spacing:-.2px;}
+  .brand .dot{display:inline-block;width:7px;height:7px;background:var(--yellow);border-radius:50%;margin-right:6px;}
+
+  .sec-label{font-size:10.5px;font-weight:800;color:var(--gray);letter-spacing:.4px;padding:0 8px;margin:14px 0 6px;text-transform:uppercase;}
+
+  .mine-row{display:flex;align-items:center;gap:10px;padding:12px 12px;border-radius:12px;background:linear-gradient(155deg,#fff8de,#fff);border:1.5px solid var(--yellow);cursor:pointer;margin-bottom:4px;}
+  .mine-row .icon{width:30px;height:30px;border-radius:9px;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#5c4600;}
+  .mine-row .info b{display:block;font-size:13.5px;font-weight:800;}
+  .mine-row .info span{font-size:10.5px;color:#8a7300;font-weight:700;}
+
+  .store-rows{overflow-y:auto;flex:1;}
+  .store-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;color:#444;}
+  .store-row:hover{background:#f0efe9;}
+  .store-row.active{background:var(--black);color:#fff;}
+  .store-row .icon{width:26px;height:26px;border-radius:8px;background:#e9e8e3;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#888;flex-shrink:0;}
+  .store-row.active .icon{background:#333;color:#fff;}
+  .store-row .name{flex:1;font-size:13px;font-weight:700;}
+  .store-row .badge{font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;background:#ececec;color:#666;}
+  .store-row .badge.warn{background:var(--red);color:#fff;}
+  .store-row.active .badge{background:rgba(255,255,255,.18);color:#fff;}
+
+  .all-store-link{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:11.5px;color:var(--gray);cursor:pointer;border-top:1px solid var(--border);}
+  .all-store-link:hover{color:var(--black);}
+
+  /* ===== 메인 영역 ===== */
+  .main{flex:1;padding:34px 40px 60px;max-width:920px;}
+  .main-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;}
+  .main-head h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.4px;}
+  .main-head .sub{font-size:12.5px;color:var(--gray);margin-top:6px;}
+
+  .seg{display:inline-flex;background:#ecebe7;border-radius:12px;padding:3px;margin-bottom:20px;}
+  .seg button{border:none;background:none;padding:9px 20px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--gray);cursor:pointer;}
+  .seg button.active{background:var(--white);color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px;}
+  .stat-card{background:var(--white);border-radius:18px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .stat-card .label{font-size:12px;color:var(--gray);font-weight:600;}
+  .stat-card .value{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.5px;}
+  .stat-card.warn .value{color:var(--red);}
+
+  .list{background:var(--white);border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .list .row{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border);}
+  .list .row:last-child{border-bottom:none;}
+  .row .rtitle{font-weight:700;font-size:14px;}
+  .row .rmeta{font-size:12px;color:var(--gray);margin-top:3px;}
+  .pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;background:#f0f0ee;color:#555;}
+  .pill.overdue{background:#fdeaea;color:var(--red);}
+</style>
+</head>
+<body>
+<div class="concept-badge">시안 2 · 사이드바 매장 스위처</div>
+<div class="shell">
+  <div class="sidebar">
+    <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+    <div class="mine-row" onclick="setStore(1)">
+      <div class="icon">구</div>
+      <div class="info"><b>구월로데오</b><span>내 소속 매장</span></div>
+    </div>
+    <div class="sec-label">전체 매장</div>
+    <div class="store-rows" id="store-rows"></div>
+    <div class="all-store-link">전체 매장 통합 랭킹 보기 →</div>
+  </div>
+  <div class="main">
+    <div class="main-head">
+      <div>
+        <h1 id="m-title">구월로데오</h1>
+        <div class="sub">사이드바에서 매장을 클릭하면 즉시 그 매장 화면으로 바뀝니다 — 별도 진입 화면이 없습니다</div>
+      </div>
+    </div>
+    <div class="seg">
+      <button class="active" data-t="as" onclick="setTab('as')">AS 접수</button>
+      <button data-t="pr" onclick="setTab('pr')">예약 현황</button>
+    </div>
+    <div id="m-body"></div>
+  </div>
+</div>
+
+<script>
+const STORES = [
+  {id:1,name:'구월로데오',as:4,warn:true,pr:2,mine:true},
+  {id:2,name:'연수',as:2,warn:false,pr:1},
+  {id:3,name:'인천공항',as:1,warn:false,pr:0},
+  {id:4,name:'논현',as:3,warn:true,pr:3},
+  {id:5,name:'구월길병원',as:0,warn:false,pr:1},
+  {id:6,name:'계산',as:2,warn:false,pr:0},
+  {id:7,name:'부천상동',as:5,warn:true,pr:2},
+  {id:8,name:'부천중동',as:1,warn:false,pr:0},
+  {id:9,name:'을지로',as:0,warn:false,pr:1},
+  {id:10,name:'검단',as:2,warn:false,pr:0},
+];
+const AS_SAMPLE = [
+  {p:'그래피티C · 배터리[블랙]',c:'김고객',days:5,overdue:true,status:'제조사 발송·검사중'},
+  {p:'롤리팟-J · 블루',c:'이고객',days:2,overdue:false,status:'로데오점 접수확인'},
+  {p:'그래피티3 · 핑크',c:'박고객',days:0,overdue:false,status:'접수완료'},
+];
+const PR_SAMPLE = [
+  {p:'RELX 파이 맥스 머스캣',c:'최고객',status:'입고완료 · 연락대기'},
+  {p:'쥴 브리즈 민트',c:'정고객',status:'검토중'},
+];
+let activeId = 1, currentTab='as';
+function renderRows(){
+  document.getElementById('store-rows').innerHTML = STORES.map(s=>`
+    <div class="store-row ${s.id===activeId?'active':''}" onclick="setStore(${s.id})">
+      <div class="icon">${s.name[0]}</div>
+      <div class="name">${s.name}</div>
+      <span class="badge ${s.warn?'warn':''}">${s.as}</span>
+    </div>`).join('');
+}
+function setStore(id){
+  activeId = id;
+  const s = STORES.find(x=>x.id===id);
+  document.getElementById('m-title').textContent = s.name;
+  renderRows();
+  setTab(currentTab);
+}
+function setTab(t){
+  currentTab = t;
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('active', b.dataset.t===t));
+  const body = document.getElementById('m-body');
+  if(t==='as'){
+    body.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><div class="label">전체 AS</div><div class="value">4건</div></div>
+        <div class="stat-card warn"><div class="label">처리중 (최대 5일째)</div><div class="value">3건</div></div>
+        <div class="stat-card"><div class="label">처리완료</div><div class="value">1건</div></div>
+      </div>
+      <div class="list">${AS_SAMPLE.map(r=>`
+        <div class="row">
+          <div><div class="rtitle">${r.p}</div><div class="rmeta">${r.c} · ${r.status}</div></div>
+          <span class="pill ${r.overdue?'overdue':''}">${r.days===0?'오늘 접수':r.days+'일째'}</span>
+        </div>`).join('')}</div>`;
+  } else {
+    body.innerHTML = `
+      <div class="card-grid">
+        <div class="stat-card"><div class="label">전체 문의</div><div class="value">2건</div></div>
+        <div class="stat-card"><div class="label">입고완료</div><div class="value">1건</div></div>
+      </div>
+      <div class="list">${PR_SAMPLE.map(r=>`
+        <div class="row">
+          <div><div class="rtitle">${r.p}</div><div class="rmeta">${r.c}</div></div>
+          <span class="pill">${r.status}</span>
+        </div>`).join('')}</div>`;
+  }
+}
+renderRows();
+setTab('as');
+</script>
+</body>
+</html>
