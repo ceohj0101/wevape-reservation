@@ -230,6 +230,11 @@
 
   /* ---------- 단계 스트립 (예약/AS 각 탭 상단) ----------
      그 탭의 처리 단계별 건수를 한 줄로 보여주고, 누르면 그 단계만 아래 목록에 뜹니다. */
+  .install-btn{display:none;width:100%;margin:0 0 10px;border:1.5px solid var(--yellow-dark);background:#fffbe8;color:#5c4600;
+    border-radius:10px;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .install-btn:hover{background:var(--yellow);}
+  .install-btn.show{display:block;}
+
   .stage-strip{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:10px;}
   .stage-strip .ss-head{display:flex;align-items:baseline;gap:8px;margin-bottom:9px;}
   .stage-strip .ss-head b{font-size:12.5px;font-weight:800;}
@@ -263,6 +268,12 @@
   .section-title{font-size:15px;font-weight:800;margin:26px 0 10px;}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--black);color:var(--white);padding:11px 20px;border-radius:8px;font-size:13.5px;z-index:100;display:none;}
 </style>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#FFC800">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="예약관리">
 </head>
 <body>
 
@@ -280,6 +291,7 @@
     </div>
     <div class="keypad" id="keypad"></div>
     <div id="login-error"></div>
+    <button id="install-btn-login" class="install-btn" style="margin-top:14px;">⬇ 바탕화면에 설치</button>
   </div>
 </div>
 
@@ -287,7 +299,7 @@
 <div id="app">
   <div class="mobile-topbar">
     <button class="hamburger" id="hamburger-btn">☰</button>
-    <span class="title" id="mobile-title">AS 접수</span>
+    <span class="title" id="mobile-title">상품 예약</span>
   </div>
 
   <div class="app-shell">
@@ -295,12 +307,13 @@
     <div class="sidebar" id="sidebar">
       <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
       <nav>
-        <button data-tab="as" class="active" data-title="AS 접수">AS 접수</button>
-        <button data-tab="product" data-title="상품 예약">상품 예약 (미취급·품절)</button>
+        <button data-tab="product" class="active" data-title="상품 예약">상품 예약 접수</button>
         <button data-tab="prstats" data-title="예약 통계">예약 통계</button>
+        <button data-tab="as" data-title="AS 접수">AS 접수</button>
         <button data-tab="asstats" data-title="AS 통계">AS 통계</button>
         <button data-tab="settings" data-title="설정">설정</button>
       </nav>
+      <button id="install-btn" class="install-btn">⬇ 바탕화면에 설치</button>
       <div class="who">
         <span id="who-info"><b></b></span>
         <button id="logout-btn">로그아웃</button>
@@ -309,7 +322,7 @@
 
     <div class="main-area">
       <!-- ---------- 상품 예약 (미취급 + 품절) ---------- -->
-      <section class="view" id="view-product">
+      <section class="view active" id="view-product">
         <div class="current-store-bar"><span>보는 범위 <b id="pr-current-store-name">-</b></span><select class="scope-select" id="pr-scope-select" onchange="setScope(this.value)"></select></div>
         <div class="type-tabs" id="pr-type-tabs">
           <button data-type="all" class="active">전체</button>
@@ -344,7 +357,7 @@
       </section>
 
       <!-- ---------- AS 접수 ---------- -->
-      <section class="view active" id="view-as">
+      <section class="view" id="view-as">
         <div class="current-store-bar"><span>보는 범위 <b id="as-current-store-name">-</b></span><select class="scope-select" id="as-scope-select" onchange="setScope(this.value)"></select></div>
         <div class="type-tabs" id="as-category-tabs">
           <button data-cat="all" class="active">전체</button>
@@ -386,11 +399,8 @@
             </select>
             <select id="pr-stat-month"><option value="all">전체 월</option></select>
             <select id="pr-stat-period">
-              <option value="7">최근 7일</option>
-              <option value="30" selected>최근 30일</option>
-              <option value="90">최근 90일</option>
+              <option value="all" selected>전체 기간</option>
               <option value="custom">기간 직접 설정</option>
-              <option value="all">전체 기간</option>
             </select>
             <span class="custom-range" id="pr-stat-custom-range" style="display:none;">
               <input type="date" id="pr-stat-from"><span class="rng-sep">~</span><input type="date" id="pr-stat-to">
@@ -437,17 +447,14 @@
             </select>
             <select id="as-stat-month"><option value="all">전체 월</option></select>
             <select id="as-stat-period">
-              <option value="7">최근 7일</option>
-              <option value="30">최근 30일</option>
-              <option value="90">최근 90일</option>
-              <option value="custom">기간 직접 설정</option>
               <option value="all" selected>전체 기간</option>
+              <option value="custom">기간 직접 설정</option>
             </select>
             <span class="custom-range" id="as-stat-custom-range" style="display:none;">
               <input type="date" id="as-stat-from"><span class="rng-sep">~</span><input type="date" id="as-stat-to">
             </span>
           </div>
-          <div class="photo-hint" style="margin-top:6px;">월을 선택하면 접수일(월별) 기준으로 보고, "전체 월"일 때만 옆의 기간 필터(최근 N일 · 직접 설정)가 적용됩니다. 기간은 모두 실제 접수일(received_date) 기준입니다.</div>
+          <div class="photo-hint" style="margin-top:6px;">월을 고르면 그 달만, "기간 직접 설정"을 고르면 원하는 시작일~종료일만 봅니다. 모두 실제 접수일 기준입니다.</div>
         </div>
 
         <div class="stat-grid" id="as-stat-cards"></div>
@@ -679,6 +686,64 @@ function storeName(id){ const s = STORES.find(x=>String(x.id)===String(id)); ret
 function reasonLabel(type,id){ const r=(REASONS[type]||[]).find(x=>String(x.id)===String(id)); return r? r.label : ''; }
 function isMobileWidth(){ return window.innerWidth <= 860; }
 
+/* ================= 바탕화면 설치 (PWA) =================
+   직원들이 매번 주소를 치지 않고 바탕화면(휴대폰은 홈 화면) 아이콘으로 바로 열 수 있게 합니다.
+   크롬/엣지는 설치 조건이 맞으면 beforeinstallprompt 를 주는데, 사파리(아이폰)나
+   이미 설치된 경우에는 이벤트가 안 와서 그럴 땐 수동 방법을 안내합니다. */
+let DEFERRED_INSTALL = null;
+const INSTALL_BTNS = ['install-btn','install-btn-login'];
+function showInstallBtns(show){
+  INSTALL_BTNS.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('show', show); });
+}
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  DEFERRED_INSTALL = e;
+  showInstallBtns(true);
+});
+window.addEventListener('appinstalled', ()=>{
+  DEFERRED_INSTALL = null; showInstallBtns(false); toast('바탕화면에 설치되었습니다');
+});
+async function doInstall(){
+  if(DEFERRED_INSTALL){
+    DEFERRED_INSTALL.prompt();
+    const { outcome } = await DEFERRED_INSTALL.userChoice;
+    if(outcome !== 'accepted') toast('설치를 취소했습니다');
+    DEFERRED_INSTALL = null; showInstallBtns(false);
+    return;
+  }
+  openModal(`
+    <h2>바탕화면에 추가하기</h2>
+    <p style="font-size:13px;color:var(--gray);line-height:1.7;">
+      브라우저에 따라 설치 버튼이 안 뜰 수 있어요. 아래 방법으로 직접 추가하시면 됩니다.
+    </p>
+    <div style="font-size:13.5px;line-height:2;margin-top:12px;">
+      <b>크롬 · 엣지 (PC)</b><br>
+      주소창 오른쪽 끝의 <b>설치 아이콘(⊕)</b> 클릭 → 설치<br>
+      아이콘이 안 보이면 오른쪽 위 <b>⋮ 메뉴 → 캐스트·저장 및 공유 → 페이지를 앱으로 설치</b>
+      <div style="height:12px;"></div>
+      <b>아이폰 (사파리)</b><br>
+      아래 <b>공유 버튼</b> → <b>홈 화면에 추가</b>
+      <div style="height:12px;"></div>
+      <b>안드로이드 (크롬)</b><br>
+      오른쪽 위 <b>⋮ 메뉴 → 홈 화면에 추가</b>
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">확인</button></div>
+  `);
+}
+INSTALL_BTNS.forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('click', doInstall);
+});
+/* 설치 안 된 상태면(브라우저로 열었으면) 버튼을 항상 보여줘서 방법이라도 안내되게 합니다. */
+if(!window.matchMedia('(display-mode: standalone)').matches && !window.navigator.standalone){
+  showInstallBtns(true);
+}
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>console.warn('SW 등록 실패', err));
+  });
+}
+
 /* ================= 로그인 ================= */
 async function loadStaffOptions(){
   const { data, error } = await sb.from('resv_staff_public').select('*').order('name');
@@ -752,10 +817,7 @@ async function enterApp(){
   await loadStores();
   await loadReasons();
   fillStoreFilters();
-  if(ME.role === 'manager' || ME.role === 'admin'){
-    document.getElementById('settings-guard').style.display='none';
-    document.getElementById('settings-body').style.display='block';
-  }
+  applyRoleUi();
   await refreshPrStats();
   await refreshAsStats();
   if(ME.role === 'manager' || ME.role === 'admin') await refreshSettings();
@@ -1935,18 +1997,69 @@ function drawPieChart(canvasId, labels, values, varName, colors){
    ========================================================= */
 async function refreshSettings(){
   const { data: staff } = await sb.from('resv_staff').select('id,name,role,store_id,active').order('name');
+  STAFF_CACHE = staff || [];
   document.querySelector('#staff-table tbody').innerHTML = (staff||[]).map(s=>`
     <tr>
       <td>${s.name}</td>
       <td>${s.role==='manager'?'실장':(s.role==='admin'?'관리자':'직원')}</td>
       <td>${s.store_id? storeName(s.store_id) : '전매장'}</td>
       <td>${s.active? '사용중':'비활성'}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="toggleStaff(${s.id}, ${!s.active})">${s.active?'비활성화':'활성화'}</button>
-          <button class="btn btn-sm btn-outline" onclick="resetPin(${s.id})">PIN 재설정</button></td>
+      <td><button class="btn btn-sm btn-outline" onclick="openStaffEdit(${s.id})">권한·매장 변경</button>
+          <button class="btn btn-sm btn-outline" onclick="resetPin(${s.id})">PIN 재설정</button>
+          <button class="btn btn-sm btn-outline" onclick="toggleStaff(${s.id}, ${!s.active})">${s.active?'비활성화':'활성화'}</button></td>
     </tr>`).join('');
 
   renderReasonTable('reason-pr-table', REASONS.product_request, 'product_request');
   renderReasonTable('reason-as-table', REASONS.as, 'as');
+}
+/* 직원의 권한(직원/실장/관리자)과 소속 매장을 바꿉니다.
+   기존에는 추가할 때만 정할 수 있어서, 한 번 잘못 넣으면 고칠 방법이 없었습니다. */
+let STAFF_CACHE = [];
+function openStaffEdit(id){
+  const st = STAFF_CACHE.find(x=>String(x.id)===String(id));
+  if(!st){ toast('직원 정보를 찾을 수 없습니다'); return; }
+  const roleOpts = [['staff','직원'],['manager','실장'],['admin','관리자']]
+    .map(([v,l])=>`<option value="${v}" ${st.role===v?'selected':''}>${l}</option>`).join('');
+  const storeOpts = '<option value="">전매장 (소속 없음)</option>' +
+    STORES.map(x=>`<option value="${x.id}" ${String(st.store_id)===String(x.id)?'selected':''}>${esc(x.name)}</option>`).join('');
+  openModal(`
+    <h2>${esc(st.name)} — 권한·소속 변경</h2>
+    <label>권한</label>
+    <select id="f-edit-role">${roleOpts}</select>
+    <div class="photo-hint" style="margin-top:6px;">실장·관리자만 설정 화면에 들어올 수 있습니다. 접수·상태 변경은 직원도 모두 가능합니다.</div>
+    <label>소속 매장</label>
+    <select id="f-edit-store">${storeOpts}</select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveStaffEdit(${st.id})">저장</button>
+    </div>
+  `);
+}
+async function saveStaffEdit(id){
+  const role = document.getElementById('f-edit-role').value;
+  const storeVal = document.getElementById('f-edit-store').value;
+  const patch = { role, store_id: storeVal ? Number(storeVal) : null };
+  const { error } = await sb.from('resv_staff').update(patch).eq('id', id);
+  if(error){ toast('저장 실패: '+error.message); return; }
+  closeModal(); toast('저장했습니다');
+  await refreshSettings();
+  /* 본인 권한을 바꾼 경우 화면에 바로 반영되도록 로그인 정보도 갱신합니다. */
+  if(ME && String(ME.id)===String(id)){
+    ME.role = role; ME.store_id = patch.store_id;
+    localStorage.setItem('resv_me', JSON.stringify(ME));
+    applyRoleUi();
+  }
+}
+/* 권한에 따라 설정 메뉴 노출 여부를 정합니다. */
+function applyRoleUi(){
+  const allowed = ME && (ME.role==='manager' || ME.role==='admin');
+  const guard = document.getElementById('settings-guard');
+  const body  = document.getElementById('settings-body');
+  if(guard) guard.style.display = allowed ? 'none' : 'block';
+  if(body)  body.style.display  = allowed ? 'block' : 'none';
+  const menu = document.querySelector('.sidebar nav button[data-tab="settings"]');
+  if(menu) menu.style.display = allowed ? '' : 'none';
+  syncScopeUi();
 }
 function renderReasonTable(tableId, list, type){
   document.querySelector('#'+tableId+' tbody').innerHTML = list.map(r=>`

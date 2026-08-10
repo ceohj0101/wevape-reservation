@@ -1,0 +1,16 @@
+{
+  "name": "위베이프 예약관리",
+  "short_name": "예약관리",
+  "description": "위베이프 상품 예약 · AS 접수 관리",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F6F6F4",
+  "theme_color": "#FFC800",
+  "lang": "ko",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

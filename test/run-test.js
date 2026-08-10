@@ -51,10 +51,25 @@ function serve(){
   for(const d of ['0','0','0','0']) await page.click(`#keypad button[data-k="${d}"]`);
   await page.waitForTimeout(300);
   assert(await page.isVisible('#app'), '로그인 성공 후 앱(사이드바 구조) 표시');
-  assert(await page.isVisible('#view-as.active'), '로그인 직후 첫 화면 = AS 접수(접수 화면)');
-  assert(await page.isVisible('#as-new-btn'), '접수 화면에 "+ 새 AS 접수" 버튼 바로 노출');
-  const firstMenu = await page.$eval('.sidebar nav button', el => el.dataset.tab);
-  assert(firstMenu === 'as', `사이드바 첫 메뉴 = AS 접수 (실제 ${firstMenu})`);
+  assert(await page.isVisible('#view-product.active'), '로그인 직후 첫 화면 = 상품 예약 접수');
+  assert(await page.isVisible('#pr-new-btn'), '접수 화면에 "+ 새 상품 예약" 버튼 바로 노출');
+  const menuOrder = await page.$$eval('.sidebar nav button', els => els.map(e=>e.dataset.tab));
+  assert(JSON.stringify(menuOrder) === JSON.stringify(['product','prstats','as','asstats','settings']),
+    `메뉴 순서 = 예약접수·예약통계·AS접수·AS통계·설정 (실제 ${menuOrder.join(',')})`);
+  assert(await page.isVisible('#install-btn'), '사이드바에 "바탕화면에 설치" 버튼 노출');
+
+  // 통계 기간 필터는 전체기간 / 직접설정 두 가지만
+  await page.click('.sidebar nav button[data-tab="asstats"]');
+  await page.waitForTimeout(300);
+  const periodOpts = await page.$$eval('#as-stat-period option', els => els.map(e=>e.value));
+  assert(JSON.stringify(periodOpts) === JSON.stringify(['all','custom']),
+    `AS 통계 기간 옵션 = 전체기간·직접설정 (실제 ${periodOpts.join(',')})`);
+  const prPeriodOpts = await page.$$eval('#pr-stat-period option', els => els.map(e=>e.value));
+  assert(JSON.stringify(prPeriodOpts) === JSON.stringify(['all','custom']),
+    `예약 통계 기간 옵션도 동일 (실제 ${prPeriodOpts.join(',')})`);
+
+  await page.click('.sidebar nav button[data-tab="as"]');
+  await page.waitForTimeout(300);
 
   // ---- 각 탭 상단의 단계 스트립 ----
   const scopeLabel0 = (await page.textContent('#as-current-store-name')).trim();
