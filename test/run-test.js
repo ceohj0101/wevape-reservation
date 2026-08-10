@@ -364,6 +364,75 @@ function serve(){
   await page.waitForTimeout(250);
   assert(await page.isVisible('#as-detail .status-jump select'), 'AS 상세에도 상태 직접 변경 드롭다운 표시');
 
+  // ================= 설정: 직원 권한·소속 변경이 실제로 저장되는지 =================
+  // (기존에는 resv_staff 를 직접 update 해서 RLS 때문에 조용히 무시되고 있었음)
+  await page.evaluate(async () => { ME.role = 'manager'; applyRoleUi(); await refreshSettings(); });
+  await page.click('.sidebar nav button[data-tab="settings"]');
+  await page.waitForTimeout(500);
+  const staffRows = await page.$$eval('#staff-table tbody tr', els => els.length);
+  assert(staffRows >= 2, `설정 직원 목록이 비어있지 않음 (실제 ${staffRows}명)`);
+  const staffHtml0 = await page.textContent('#staff-table');
+  assert(staffHtml0.includes('권한·매장 변경'), '직원 행에 "권한·매장 변경" 버튼 표시');
+
+  await page.click('#staff-table tbody tr:has-text("신재현") button:has-text("권한·매장 변경")');
+  await page.waitForTimeout(250);
+  assert(await page.isVisible('#f-edit-role'), '권한 변경 모달 표시');
+  await page.selectOption('#f-edit-role', 'admin');
+  await page.selectOption('#f-edit-store', { index: 1 });
+  await page.click('#modal-body .btn-primary');
+  await page.waitForTimeout(450);
+  const staffHtml1 = await page.textContent('#staff-table');
+  assert(staffHtml1.includes('관리자'), '변경한 권한(관리자)이 목록에 반영됨');
+
+  // ================= 단순접수 인계 절차 + 삭제 버튼 =================
+  await page.click('.sidebar nav button[data-tab="as"]');
+  await page.waitForTimeout(300);
+  await page.selectOption('#as-month-bar select', 'all');
+  await page.waitForTimeout(300);
+  await page.click('#as-new-btn');
+  await page.waitForTimeout(200);
+  await page.click('#f-as-cat-toggle button[data-cat="other"]');
+  await page.waitForTimeout(150);
+  await page.click('#f-as-cat-toggle button[data-cat="hq"]');
+  await page.waitForTimeout(150);
+  await page.fill('#f-as-product-search', '롤리팟');
+  await page.waitForTimeout(200);
+  await page.click('.as-search-item');
+  await page.waitForTimeout(150);
+  await page.click('#f-as-method-toggle button[data-m="단순접수"]');   // 단순접수로 접수
+  await page.fill('#f-cname', '인계고객');
+  await page.click('#modal-body .btn-primary');
+  await page.waitForTimeout(400);
+
+  await page.click('#as-list .row:has-text("인계고객")');
+  await page.waitForTimeout(300);
+  const simpleNodes = await page.$$eval('#as-detail .pipeline .node', els => els.length);
+  assert(simpleNodes === 4, `단순접수 본사 제품 파이프라인 4단계 (실제 ${simpleNodes})`);
+  const simpleDetail = await page.textContent('#as-detail');
+  assert(simpleDetail.includes('입고·연락 대기') && simpleDetail.includes('인계 완료'),
+    '단순접수 흐름에 입고·연락 대기 / 인계 완료 단계 표시');
+  assert(simpleDetail.includes('접수 삭제'), 'AS 상세에 접수 삭제 버튼 표시');
+
+  // 입고·연락 대기까지 진행 → '연락 안 됨' 분기 확인
+  await page.selectOption('#as-detail .status-jump select', 'ready');
+  await page.waitForTimeout(400);
+  assert((await page.textContent('#as-detail')).includes('연락 안 됨'), '입고·연락 대기 단계에서 "연락 안 됨" 버튼 노출');
+  await page.click('#as-detail button:has-text("연락 안 됨")');
+  await page.waitForTimeout(400);
+  const naDetail = await page.textContent('#as-detail');
+  assert(naDetail.includes('연락됨 · 인계 완료'), '연락 두절 건에서 다시 인계 완료로 되돌릴 수 있음');
+  const stripTxt = await page.textContent('#as-stage-strip');
+  assert(stripTxt.includes('연락 두절'), '단순접수 스트립에 "연락 두절" 타일 표시');
+  assert(stripTxt.includes('단순접수'), '스트립이 현장교체/단순접수로 나뉘어 표시');
+
+  // 삭제
+  await page.click('#as-detail button:has-text("접수 삭제")');
+  await page.waitForTimeout(250);
+  assert((await page.textContent('#modal-body')).includes('되돌릴 수 없습니다'), '삭제 확인 모달 표시');
+  await page.click('#modal-body button:has-text("삭제합니다")');
+  await page.waitForTimeout(450);
+  assert(!(await page.textContent('#as-list')).includes('인계고객'), '삭제 후 목록에서 사라짐');
+
   console.log('\n--- console/page errors captured ---');
   errors.forEach(e => console.log(e));
   console.log(errors.length ? `${errors.length} error(s) captured (see above; some may be benign 404s from stubbed CDN).` : 'no console/page errors');

@@ -652,10 +652,21 @@ const REPORT_CATEGORIES = [
 ];
 
 /* 카테고리별 A/S 처리 파이프라인 (본사 제품 / 타사 제품이 서로 다릅니다) */
+/* A/S 처리 흐름은 제품 구분(본사/타사) + 접수 방식(현장교체/단순접수)에 따라 달라집니다.
+   - 현장교체: 접수할 때 새 상품으로 이미 바꿔드린 건이라 고객에게 다시 연락할 일이 없습니다.
+   - 단순접수: 물건을 맡아둔 건이라, 제품이 입고되면 고객에게 연락해서 인계해야 끝납니다.
+     그래서 단순접수에는 '입고·연락 대기 → 인계 완료' 단계가 뒤에 붙습니다.
+     연락이 안 되는 건은 '연락 두절'로 빠져서 따로 모아볼 수 있습니다. */
 const STATUS_FLOW_AS = {
   hq: [
     {code:'received', label:'접수 완료'},
     {code:'erp_done', label:'ERP 기입 완료'}
+  ],
+  hq_simple: [
+    {code:'received', label:'접수 완료'},
+    {code:'erp_done', label:'ERP 기입 완료'},
+    {code:'ready',    label:'입고·연락 대기'},
+    {code:'completed',label:'인계 완료'}
   ],
   other: [
     {code:'received', label:'지점 접수'},
@@ -666,13 +677,22 @@ const STATUS_FLOW_AS = {
     {code:'picked_up', label:'고객 수령완료'}
   ]
 };
+/* 정상 흐름에서 옆으로 빠지는 갈래 (완료로 칩니다) */
+const AS_BRANCH_STATUS = { no_answer: '연락 두절' };
 const ALL_STATUS_LABELS_AS = {
   received:'접수', erp_done:'ERP 기입완료', confirmed:'로데오점 접수확인', sent_out:'발송·검사중',
   restocked:'재입고완료', sent_branch:'지점발송완료', picked_up:'고객수령완료',
-  processing:'처리중', ready:'고객안내대기', completed:'인계완료'
+  processing:'처리중', ready:'입고·연락대기', completed:'인계완료', no_answer:'연락 두절'
 };
-function asFlow(entry){ return STATUS_FLOW_AS[entry.category] || STATUS_FLOW_AS.hq; }
+function isSimpleIntake(entry){ return (entry.service_method||'') === '단순접수'; }
+function asFlowKey(entry){
+  const cat = entry.category || 'hq';
+  if(cat === 'other') return 'other';
+  return isSimpleIntake(entry) ? 'hq_simple' : 'hq';
+}
+function asFlow(entry){ return STATUS_FLOW_AS[asFlowKey(entry)] || STATUS_FLOW_AS.hq; }
 function isAsDone(entry){
+  if(AS_BRANCH_STATUS[entry.status]) return true;   // 연락 두절도 더 진행할 게 없으므로 완료로 봅니다
   const flow = asFlow(entry);
   return entry.status === flow[flow.length-1].code;
 }
@@ -950,12 +970,18 @@ function renderAsStrip(){
   const el = document.getElementById('as-stage-strip');
   if(!el || !AS_ITEMS_RAW) return;
   const scoped = AS_ITEMS_RAW.filter(r=>matchMonth(r,'as',AS_MONTH_FILTER));
-  const cats = AS_CATEGORY_FILTER==='all' ? ['hq','other'] : [AS_CATEGORY_FILTER];
-  const CAT_NAME = { hq:'본사 제품', other:'타사 제품' };
+  /* 같은 본사 제품이라도 현장교체와 단순접수는 처리 단계가 달라서 줄을 나눠 보여줍니다. */
+  const GROUPS = [
+    {key:'hq',        name:'본사 제품 · 현장교체', cat:'hq'},
+    {key:'hq_simple', name:'본사 제품 · 단순접수', cat:'hq'},
+    {key:'other',     name:'타사 제품',            cat:'other'},
+  ].filter(g => AS_CATEGORY_FILTER==='all' || g.cat===AS_CATEGORY_FILTER);
   let html = '';
-  cats.forEach(cat=>{
-    const rows = scoped.filter(r=>(r.category||'hq')===cat);
-    const flow = STATUS_FLOW_AS[cat];
+  GROUPS.forEach(g=>{
+    const cat = g.key;
+    const rows = scoped.filter(r=>asFlowKey(r)===g.key);
+    if(!rows.length && AS_CATEGORY_FILTER==='all') return;
+    const flow = STATUS_FLOW_AS[g.key];
     const allActive = !AS_STAGE_FILTER;
     let tiles = stageTile('전체', '', rows.length, allActive, {onclick:`setAsStage(null)`});
     flow.forEach((st,i)=>{
@@ -965,8 +991,14 @@ function renderAsStrip(){
       tiles += stageTile(st.label, AS_STAGE_SUB[st.code]||'', items.length,
                          AS_STAGE_FILTER===st.code, {hot, done:isDone, onclick:`setAsStage('${st.code}')`});
     });
+    // 연락 두절은 정상 흐름 밖이라 맨 뒤에 따로 붙입니다.
+    if(g.key==='hq_simple'){
+      const na = rows.filter(r=>r.status==='no_answer');
+      tiles += stageTile('연락 두절','고객 연락 안 됨', na.length, AS_STAGE_FILTER==='no_answer',
+                         {hot:na.length>0, onclick:`setAsStage('no_answer')`});
+    }
     html += `<div class="stage-strip">
-      <div class="ss-head"><b>${CAT_NAME[cat]}</b><span>${rows.length}건 · ${esc(scopeLabel())}</span></div>
+      <div class="ss-head"><b>${esc(g.name)}</b><span>${rows.length}건 · ${esc(scopeLabel())}</span></div>
       <div class="ss-tiles">${tiles}</div></div>`;
   });
   el.innerHTML = html;
@@ -1017,6 +1049,35 @@ function setScope(v){
   syncScopeUi();
   refreshProductList();
   refreshAsList();
+}
+
+/* ================= 접수 기록 삭제 =================
+   잘못 등록했거나 중복으로 들어간 건을 지웁니다. 되돌릴 수 없어서 한 번 더 확인받습니다. */
+function deleteRecord(kind, id){
+  const isAs = kind==='as';
+  const item = isAs ? (AS_ITEMS_RAW||[]).find(r=>String(r.id)===String(id))
+                    : (PR_ITEMS_RAW||[]).find(r=>String(r.id)===String(id));
+  const title = item ? (isAs ? asProductLabel(item) : item.product_name) : '';
+  const who = item && item.customer_name ? ` · ${item.customer_name} 고객` : '';
+  openModal(`
+    <h2>이 접수 기록을 삭제할까요?</h2>
+    <div style="background:#fdeaea;border:1.5px solid #f6b9bb;border-radius:10px;padding:12px 14px;margin:10px 0 4px;">
+      <div style="font-size:14.5px;font-weight:800;">${esc(title)}</div>
+      <div style="font-size:12px;color:var(--gray);margin-top:4px;">${esc(item?storeName(item.store_id):'')}${esc(who)}</div>
+    </div>
+    <p style="font-size:12.5px;color:var(--red);font-weight:700;">삭제하면 되돌릴 수 없습니다. 잘못 등록한 건만 지워주세요.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-danger" onclick="confirmDelete('${kind}', ${id})">삭제합니다</button>
+    </div>
+  `);
+}
+async function confirmDelete(kind, id){
+  const table = kind==='as' ? 'resv_as_requests' : 'resv_product_requests';
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if(error){ toast('삭제 실패: '+error.message); return; }
+  closeModal(); toast('삭제했습니다');
+  if(kind==='as'){ AS_SELECTED_ID=null; refreshAsList(); } else { PR_SELECTED_ID=null; refreshProductList(); }
 }
 
 /* ================= 공통 로드 ================= */
@@ -1249,6 +1310,7 @@ function prDetailHtml(r){
     actions += `<button class="btn btn-outline" onclick="revertPrStatus(${r.id})">이전 단계로</button>`;
   }
   actions += prStatusSelectHtml(r);
+  actions += `<button class="btn btn-outline btn-sm" onclick="deleteRecord('pr', ${r.id})">접수 삭제</button>`;
   const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
   return `<div class="detail-card">
     <div class="top-row">
@@ -1533,7 +1595,15 @@ function asDetailHtml(r){
     if(next) actions += `<button class="btn btn-primary" onclick="advanceAsStatus(${r.id})">${esc(next.label)} 처리</button>`;
   }
   if(idx>0) actions += `<button class="btn btn-outline" onclick="revertAsStatus(${r.id})">이전 단계로</button>`;
+  /* 단순접수 건이 '입고·연락 대기'에 와 있으면, 인계 완료와 연락 두절 중 하나로 마무리합니다. */
+  if(r.status === 'ready'){
+    actions += `<button class="btn btn-danger" onclick="setAsStatus(${r.id}, 'no_answer')">연락 안 됨</button>`;
+  }
+  if(r.status === 'no_answer'){
+    actions += `<button class="btn btn-primary" onclick="setAsStatus(${r.id}, 'completed')">연락됨 · 인계 완료</button>`;
+  }
   actions += asStatusSelectHtml(r);
+  actions += `<button class="btn btn-outline btn-sm" onclick="deleteRecord('as', ${r.id})">접수 삭제</button>`;
   const contactLabel = r.contact_mode==='last4' ? '뒷 4자리만 수집' : '전체번호 수집';
   return `<div class="detail-card">
     <div class="top-row">
@@ -1559,7 +1629,11 @@ function asDetailHtml(r){
    제품 구분(본사/타사)에 맞는 단계만 보여줍니다. */
 function asStatusSelectHtml(r){
   const flow = asFlow(r);
-  const opts = flow.map(f=>`<option value="${f.code}" ${f.code===r.status?'selected':''}>${esc(f.label)}</option>`).join('');
+  let opts = flow.map(f=>`<option value="${f.code}" ${f.code===r.status?'selected':''}>${esc(f.label)}</option>`).join('');
+  if(isSimpleIntake(r) || AS_BRANCH_STATUS[r.status]){
+    opts += Object.entries(AS_BRANCH_STATUS)
+      .map(([c,l])=>`<option value="${c}" ${c===r.status?'selected':''}>${esc(l)}</option>`).join('');
+  }
   return `<label class="status-jump"><span>상태 직접 변경</span>
     <select onchange="setAsStatus(${r.id}, this.value)">${opts}</select></label>`;
 }
@@ -2077,7 +2151,9 @@ function drawPieChart(canvasId, labels, values, varName, colors){
    설정 (직원 / 사유 관리) — 실장/관리자 전용
    ========================================================= */
 async function refreshSettings(){
-  const { data: staff } = await sb.from('resv_staff').select('id,name,role,store_id,active').order('name');
+  /* resv_staff 는 PIN 보호를 위해 직접 조회가 막혀 있어서, 전용 함수로 읽습니다. */
+  const { data: staff, error: staffErr } = await sb.rpc('resv_staff_list');
+  if(staffErr){ console.error(staffErr); toast('직원 목록을 불러오지 못했습니다 — staff_admin_functions.sql 실행이 필요합니다'); }
   STAFF_CACHE = staff || [];
   document.querySelector('#staff-table tbody').innerHTML = (staff||[]).map(s=>`
     <tr>
@@ -2119,9 +2195,10 @@ function openStaffEdit(id){
 async function saveStaffEdit(id){
   const role = document.getElementById('f-edit-role').value;
   const storeVal = document.getElementById('f-edit-store').value;
-  const patch = { role, store_id: storeVal ? Number(storeVal) : null };
-  const { error } = await sb.from('resv_staff').update(patch).eq('id', id);
+  const store_id = storeVal ? Number(storeVal) : null;
+  const { error } = await sb.rpc('resv_staff_set_role', { p_id: id, p_role: role, p_store_id: store_id });
   if(error){ toast('저장 실패: '+error.message); return; }
+  const patch = { role, store_id };
   closeModal(); toast('저장했습니다');
   await refreshSettings();
   /* 본인 권한을 바꾼 경우 화면에 바로 반영되도록 로그인 정보도 갱신합니다. */
@@ -2168,17 +2245,17 @@ async function submitNewStaff(){
   const name = document.getElementById('f-name').value.trim();
   const pin = document.getElementById('f-pin').value.trim();
   if(!name || !/^\d{4}$/.test(pin)){ toast('이름과 4자리 PIN을 입력해주세요'); return; }
-  const payload = {
-    name, pin,
-    role: document.getElementById('f-role').value,
-    store_id: document.getElementById('f-store').value || null
-  };
-  const { error } = await sb.from('resv_staff').insert(payload);
+  const storeVal = document.getElementById('f-store').value;
+  const { error } = await sb.rpc('resv_staff_add', {
+    p_name: name, p_pin: pin,
+    p_role: document.getElementById('f-role').value,
+    p_store_id: storeVal ? Number(storeVal) : null
+  });
   if(error){ toast('추가 실패: '+error.message); return; }
   closeModal(); toast('직원을 추가했습니다'); refreshSettings(); loadStaffOptions();
 }
 async function toggleStaff(id, activate){
-  const { error } = await sb.from('resv_staff').update({active: activate}).eq('id', id);
+  const { error } = await sb.rpc('resv_staff_set_active', { p_id: id, p_active: activate });
   if(error){ toast('처리 실패: '+error.message); return; }
   toast('변경했습니다'); refreshSettings(); loadStaffOptions();
 }
@@ -2195,7 +2272,7 @@ function resetPin(id){
 async function submitResetPin(id){
   const pin = document.getElementById('f-newpin').value.trim();
   if(!/^\d{4}$/.test(pin)){ toast('4자리 숫자를 입력해주세요'); return; }
-  const { error } = await sb.from('resv_staff').update({pin}).eq('id', id);
+  const { error } = await sb.rpc('resv_staff_set_pin', { p_id: id, p_pin: pin });
   if(error){ toast('처리 실패: '+error.message); return; }
   closeModal(); toast('PIN을 재설정했습니다');
 }

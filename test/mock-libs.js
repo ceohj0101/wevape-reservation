@@ -40,7 +40,7 @@ window.Chart = class {
   class QueryBuilder {
     constructor(table, mode){
       this.table = table;
-      this.mode = mode; // 'select' | 'insert' | 'update'
+      this.mode = mode; // 'select' | 'insert' | 'update' | 'delete'
       this.filters = [];
       this._orders = [];
       this._payload = null;
@@ -57,6 +57,12 @@ window.Chart = class {
           const rec = Object.assign({ id: nextId++, created_at: now(), updated_at: now() }, this._payload);
           db[this.table].push(rec);
           resolve({ data: [rec], error: null });
+          return;
+        }
+        if(this.mode === 'delete'){
+          const targets = applyFilters(db[this.table], this.filters);
+          db[this.table] = db[this.table].filter(r => !targets.includes(r));
+          resolve({ data: clone(targets), error: null });
           return;
         }
         if(this.mode === 'update'){
@@ -88,7 +94,7 @@ window.Chart = class {
     constructor(table, payload){ super(table, 'insert'); this._payload = payload; }
   }
   class Updatable extends QueryBuilder {
-    constructor(table, payload){ super(table, 'update'); this._payload = payload; }
+    constructor(table, payload, mode){ super(table, mode || 'update'); this._payload = payload; }
   }
 
   const client = {
@@ -97,6 +103,7 @@ window.Chart = class {
         select(){ const q = new QueryBuilder(table, 'select'); return q; },
         insert(payload){ return new Insertable(table, payload); },
         update(payload){ return new Updatable(table, payload); },
+        delete(){ return new Updatable(table, null, 'delete'); },
       };
     },
     rpc(name, args){
@@ -104,6 +111,24 @@ window.Chart = class {
         if(name === 'resv_login'){
           const staff = db.resv_staff.find(s=>s.id===args.p_staff_id && s.pin===args.p_pin);
           resolve({ data: staff ? [{ id: staff.id, name: staff.name, role: staff.role, store_id: staff.store_id }] : [], error: null });
+        } else if(name === 'resv_staff_list'){
+          resolve({ data: clone(db.resv_staff).map(({pin, ...r}) => r), error: null });
+        } else if(name === 'resv_staff_set_role'){
+          const t = db.resv_staff.find(x => String(x.id) === String(args.p_id));
+          if(t){ t.role = args.p_role; t.store_id = args.p_store_id; }
+          resolve({ data: null, error: null });
+        } else if(name === 'resv_staff_set_active'){
+          const t = db.resv_staff.find(x => String(x.id) === String(args.p_id));
+          if(t) t.active = args.p_active;
+          resolve({ data: null, error: null });
+        } else if(name === 'resv_staff_set_pin'){
+          const t = db.resv_staff.find(x => String(x.id) === String(args.p_id));
+          if(t) t.pin = args.p_pin;
+          resolve({ data: null, error: null });
+        } else if(name === 'resv_staff_add'){
+          db.resv_staff.push({ id: nextId++, name: args.p_name, pin: args.p_pin,
+            role: args.p_role, store_id: args.p_store_id, active: true });
+          resolve({ data: null, error: null });
         } else {
           resolve({ data: null, error: { message: 'unknown rpc' } });
         }
