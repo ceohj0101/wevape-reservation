@@ -51,7 +51,15 @@ function serve(){
   for(const d of ['0','0','0','0']) await page.click(`#keypad button[data-k="${d}"]`);
   await page.waitForTimeout(300);
   assert(await page.isVisible('#app'), '로그인 성공 후 앱(사이드바 구조) 표시');
-  assert(await page.isVisible('#view-board.active'), '로그인 직후 첫 화면 = 처리 현황판');
+  assert(await page.isVisible('#view-as.active'), '로그인 직후 첫 화면 = AS 접수(접수 화면)');
+  assert(await page.isVisible('#as-new-btn'), '접수 화면에 "+ 새 AS 접수" 버튼 바로 노출');
+  const firstMenu = await page.$eval('.sidebar nav button', el => el.dataset.tab);
+  assert(firstMenu === 'as', `사이드바 첫 메뉴 = AS 접수 (실제 ${firstMenu})`);
+
+  // ---- 처리 현황판은 사이드바에서 들어가서 확인 ----
+  await page.click('.sidebar nav button[data-tab="board"]');
+  await page.waitForTimeout(400);
+  assert(await page.isVisible('#view-board.active'), '사이드바에서 처리 현황판 진입');
   assert(await page.isVisible('#board-hq'), '본사 제품 단계 보드 표시');
   assert(await page.isVisible('#board-other'), '타사 제품 단계 보드 표시');
   assert(await page.isVisible('#board-pr'), '상품 예약 단계 보드 표시');

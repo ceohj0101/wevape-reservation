@@ -80,6 +80,10 @@
   .custom-range .rng-sep{color:var(--gray);font-size:12px;}
   .btn{padding:10px 16px;border-radius:8px;border:none;font-weight:700;font-size:13px;}
   .btn-primary{background:var(--yellow);color:var(--black);}
+  /* 새 접수 버튼 — 로그인하면 바로 보이는 화면의 주된 동작이라 크게 강조합니다. */
+  .btn-new{padding:14px 22px;border-radius:12px;font-size:15px;font-weight:800;background:var(--black);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.16);transition:transform .12s;}
+  .btn-new:hover{transform:translateY(-1px);}
+  .btn-new:active{transform:scale(.97);}
   .btn-primary:hover{background:var(--yellow-dark);}
   .btn-outline{background:var(--white);border:1.5px solid var(--border);color:var(--black);}
   .btn-danger{background:#fff0f0;color:var(--red);border:1.5px solid #ffd6d6;}
@@ -309,7 +313,7 @@
 <div id="app">
   <div class="mobile-topbar">
     <button class="hamburger" id="hamburger-btn">☰</button>
-    <span class="title" id="mobile-title">상품 예약</span>
+    <span class="title" id="mobile-title">AS 접수</span>
   </div>
 
   <div class="app-shell">
@@ -317,9 +321,9 @@
     <div class="sidebar" id="sidebar">
       <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
       <nav>
-        <button data-tab="board" class="active" data-title="처리 현황판">처리 현황판</button>
+        <button data-tab="as" class="active" data-title="AS 접수">AS 접수</button>
         <button data-tab="product" data-title="상품 예약">상품 예약 (미취급·품절)</button>
-        <button data-tab="as" data-title="AS 접수">AS 접수</button>
+        <button data-tab="board" data-title="처리 현황판">처리 현황판</button>
         <button data-tab="prstats" data-title="예약 통계">예약 통계</button>
         <button data-tab="asstats" data-title="AS 통계">AS 통계</button>
         <button data-tab="settings" data-title="설정">설정</button>
@@ -332,7 +336,7 @@
 
     <div class="main-area">
       <!-- ---------- 처리 현황판 (단계 보드) ---------- -->
-      <section class="view active" id="view-board">
+      <section class="view" id="view-board">
         <div class="current-store-bar">
           <span>보는 범위 <b id="board-scope-name">-</b></span>
           <select class="scope-select" id="board-scope-select" onchange="setScope(this.value)"></select>
@@ -383,7 +387,7 @@
               <option value="abandoned">구매포기</option>
             </select>
           </div>
-          <button class="btn btn-primary" id="pr-new-btn">+ 새 등록</button>
+          <button class="btn-new" id="pr-new-btn">+ 새 상품 예약</button>
         </div>
 
         <div class="md-layout stacked" id="pr-md-root">
@@ -396,7 +400,7 @@
       </section>
 
       <!-- ---------- AS 접수 ---------- -->
-      <section class="view" id="view-as">
+      <section class="view active" id="view-as">
         <div class="current-store-bar"><span>보는 범위 <b id="as-current-store-name">-</b></span><select class="scope-select" id="as-scope-select" onchange="setScope(this.value)"></select></div>
         <div class="type-tabs" id="as-category-tabs">
           <button data-cat="all" class="active">전체</button>
@@ -413,7 +417,7 @@
             </select>
             <input id="as-q-filter" type="text" placeholder="고객명 / 등록자 검색" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
           </div>
-          <button class="btn btn-primary" id="as-new-btn">+ 새 AS 접수</button>
+          <button class="btn-new" id="as-new-btn">+ 새 AS 접수</button>
         </div>
 
         <div id="as-stage-banner"></div>
