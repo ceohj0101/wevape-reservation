@@ -116,6 +116,26 @@
   .detail-card .field b{color:#222;font-weight:700;text-align:right;}
   .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center;}
   /* 진행 상황 버튼 — 어느 단계인지 펼치지 않고 바로 보이게 */
+  /* 한 줄 압축 목록 — 많은 접수 건을 한 화면에서 훑기 위한 배치 */
+  .md-list .row.cmp{display:flex;align-items:center;gap:9px;padding:9px 11px;}
+  .md-list .row.cmp.checked{background:#f4faf6;}
+  .md-list .row.cmp .chk{width:22px;height:22px;flex:0 0 22px;border:1.5px solid var(--border);background:#fff;border-radius:6px;
+    cursor:pointer;font-size:13px;font-weight:800;color:transparent;line-height:1;padding:0;}
+  .md-list .row.cmp .chk:hover{border-color:var(--yellow-dark);}
+  .md-list .row.cmp .chk.on{background:#2f9e58;border-color:#2f9e58;color:#fff;}
+  .md-list .row.cmp .c-date{font-size:11px;color:var(--gray);font-weight:700;flex:0 0 38px;}
+  .md-list .row.cmp .c-store{font-size:11px;font-weight:800;color:#5c4600;background:#fff3cc;padding:2px 7px;border-radius:20px;flex:0 0 auto;white-space:nowrap;}
+  .md-list .row.cmp .c-prod{font-size:12.5px;font-weight:700;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .md-list .row.cmp .c-cust{font-size:11.5px;color:var(--gray);flex:0 0 auto;white-space:nowrap;}
+  .md-list .row.cmp .c-tags{display:flex;gap:4px;flex:0 0 auto;}
+  .md-list .row.cmp .c-tags .tag{font-size:10px;padding:2px 6px;}
+
+  .pr-reason{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);}
+  .pr-reason:last-child{border-bottom:none;}
+  .pr-reason span{color:#444;}
+  .pr-reason b{font-weight:800;}
+  .pr-reason-head{font-size:11px;font-weight:800;color:var(--gray);margin-bottom:4px;}
+
   .msub-title{font-size:13px;color:var(--gray);margin:-6px 0 12px;font-weight:600;}
   .status-chips{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;margin-top:4px;}
   .status-chips .sch-label{font-size:11.5px;color:var(--gray);font-weight:800;margin-right:2px;}
@@ -249,6 +269,19 @@
   .month-bar select{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:8px 13px;
     font-size:13px;font-weight:800;font-family:inherit;outline:none;cursor:pointer;}
   .month-bar select:focus{border-color:var(--yellow-dark);}
+  .month-bar{display:block;}
+  .mb-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .mb-range{display:inline-flex;align-items:center;gap:6px;}
+  .mb-range input{border:1.5px solid var(--yellow-dark);border-radius:20px;padding:7px 11px;font-size:12.5px;font-family:inherit;font-weight:700;outline:none;}
+  .store-sum{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:9px;border-top:1px dashed var(--border);}
+  .store-sum .ss-t{font-size:11px;font-weight:800;color:var(--gray);margin-right:2px;}
+  .store-sum .ss-chip{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:5px 11px;font-size:11.5px;font-weight:700;color:#555;cursor:pointer;font-family:inherit;}
+  .store-sum .ss-chip b{color:var(--black);margin-left:3px;}
+  .store-sum .ss-chip:hover{border-color:var(--yellow-dark);}
+  .store-sum .ss-chip.on{background:var(--yellow);border-color:var(--yellow-dark);color:#3a2c00;}
+  .store-sum .ss-total{font-size:11.5px;font-weight:800;color:var(--gray);margin-left:auto;}
+  .store-sum .ss-total b{color:var(--black);}
+
   .backlog-btn{border:1.5px solid #f6b9bb;background:#fdeaea;color:var(--red);border-radius:20px;padding:8px 14px;
     font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;}
   .backlog-btn:hover{background:#fbdcdd;}
@@ -396,6 +429,11 @@
               <option value="pending">처리중</option>
               <option value="done">완료</option>
             </select>
+            <select id="as-check-filter">
+              <option value="all">확인 전체</option>
+              <option value="unchecked">미확인만</option>
+              <option value="checked">확인 완료만</option>
+            </select>
             <input id="as-q-filter" type="text" placeholder="고객명 / 등록자 검색" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
           </div>
           <button class="btn-new" id="as-new-btn">+ 새 AS 접수</button>
@@ -483,7 +521,12 @@
         <div class="stat-grid" id="as-stat-cards"></div>
 
         <div class="rank-card">
-          <div class="rank-card-title"><span>중복 증상 TOP — 같은 불량 사유가 많이 겹치는 순 (클릭하면 상세 사례)</span><span class="total" id="as-symptom-total"></span></div>
+          <div class="rank-card-title"><span>제품별 A/S 발생 순위 — 색상·사유 관계없이 제품 기준으로 묶은 집계 (클릭하면 불량 사유별 내역)</span><span class="total" id="as-product-total"></span></div>
+          <div id="as-product-rank"></div>
+        </div>
+
+        <div class="rank-card">
+          <div class="rank-card-title"><span>중복 증상 TOP — 같은 제품에서 같은 불량 사유가 겹치는 순 (클릭하면 상세 사례)</span><span class="total" id="as-symptom-total"></span></div>
           <div id="as-symptom-rank"></div>
         </div>
 
@@ -924,8 +967,17 @@ function stageTile(label, sub, count, active, opts){
 /* ---------- 월 바 (이번 달 기본 + 지난달 이전 미완료 바로가기) ----------
    접수 화면은 기본이 "이번 달"입니다. 지난 달 이전에 접수됐는데 아직 안 끝난 건은
    달을 하나하나 뒤질 필요 없이 옆의 빨간 버튼 하나로 모아서 볼 수 있습니다. */
-let AS_MONTH_FILTER = 'this';   // 'this' | 'YYYY-MM' | 'all' | 'backlog'
+let AS_MONTH_FILTER = 'this';   // 'this' | 'YYYY-MM' | 'all' | 'backlog' | 'range'
 let PR_MONTH_FILTER = 'this';
+let AS_RANGE = { from:'', to:'' };
+let PR_RANGE = { from:'', to:'' };
+function setAsRange(k,v){ AS_RANGE[k]=v; applyAsFilters(true); }
+function setPrRange(k,v){ PR_RANGE[k]=v; refreshProductList(); }
+/* 매장별 수량 칩을 누르면 그 매장만 보도록 범위를 바꿉니다. */
+function jumpStore(name){
+  const st = STORES.find(x=>x.name===name);
+  setScope(st ? String(st.id) : 'all');
+}
 
 function thisMonthKey(){
   const d = new Date();
@@ -945,9 +997,22 @@ function isBacklog(r, kind){
   const mk = rowMonthKey(r, kind);
   return !!mk && mk < thisMonthKey() && !isRowDone(r, kind);
 }
+function rowDateOf(r, kind){
+  const raw = kind==='as' ? (r.received_date || r.created_at) : r.created_at;
+  const m = String(raw||'').match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
+}
 function matchMonth(r, kind, filter){
   if(filter === 'all') return true;
   if(filter === 'backlog') return isBacklog(r, kind);
+  if(filter === 'range'){
+    const rg = kind==='as' ? AS_RANGE : PR_RANGE;
+    const d = rowDateOf(r, kind);
+    if(!d) return false;
+    if(rg.from && d < rg.from) return false;
+    if(rg.to && d > rg.to) return false;
+    return true;
+  }
   const want = filter === 'this' ? thisMonthKey() : filter;
   return rowMonthKey(r, kind) === want;
 }
@@ -966,17 +1031,41 @@ function renderMonthBar(kind){
   const months = Array.from(new Set(rows.map(r=>rowMonthKey(r,kind)).filter(Boolean).concat([tm]))).sort().reverse();
   const opts = [`<option value="this" ${cur==='this'?'selected':''}>이번 달 (${monthLabel(tm)})</option>`]
     .concat(months.filter(m=>m!==tm).map(m=>`<option value="${m}" ${cur===m?'selected':''}>${monthLabel(m)}</option>`))
-    .concat([`<option value="all" ${cur==='all'?'selected':''}>전체 기간</option>`]).join('');
+    .concat([`<option value="all" ${cur==='all'?'selected':''}>전체 기간</option>`,
+             `<option value="range" ${cur==='range'?'selected':''}>기간 직접 설정</option>`]).join('');
   const backlog = rows.filter(r=>isBacklog(r,kind)).length;
   const setter = isAs ? 'setAsMonth' : 'setPrMonth';
   const shown = rows.filter(r=>matchMonth(r,kind,cur)).length;
+  const rg = isAs ? AS_RANGE : PR_RANGE;
+  const rangeUi = cur==='range' ? `
+    <span class="mb-range">
+      <input type="date" value="${rg.from||''}" onchange="${isAs?'setAsRange':'setPrRange'}('from', this.value)">
+      <span class="rng-sep">~</span>
+      <input type="date" value="${rg.to||''}" onchange="${isAs?'setAsRange':'setPrRange'}('to', this.value)">
+    </span>` : '';
+  /* 매장별 접수 수량 — 지금 고른 기간 기준으로 자동 집계됩니다.
+     전 매장 A/S를 받아서 처리하는 담당자가 어느 매장에서 몇 개가 들어왔는지 바로 봐야 해서 넣었습니다. */
+  const shownRows = rows.filter(r=>matchMonth(r,kind,cur));
+  const byStore = {};
+  shownRows.forEach(r=>{ const n=storeName(r.store_id); byStore[n]=(byStore[n]||0)+1; });
+  const storeSum = Object.entries(byStore).sort((a,b)=>b[1]-a[1]);
+  const sumHtml = storeSum.length ? `<div class="store-sum">
+      <span class="ss-t">매장별 접수 수량</span>
+      ${storeSum.map(([n,c])=>`<button class="ss-chip ${String(CURRENT_STORE_ID)!=='all'&&storeName(CURRENT_STORE_ID)===n?'on':''}"
+        onclick="jumpStore('${esc(n)}')">${esc(n)} <b>${c}</b></button>`).join('')}
+      <span class="ss-total">합계 <b>${shownRows.length}</b>건</span>
+    </div>` : '';
   el.innerHTML = `
-    <select onchange="${setter}(this.value)">${opts}</select>
-    <button class="backlog-btn ${cur==='backlog'?'on':''} ${backlog===0?'none':''}"
-      onclick="${backlog===0?'':`${setter}('backlog')`}">
-      ⚠ 지난달 이전 미완료 ${backlog}건${cur==='backlog'?' — 보는 중':''}
-    </button>
-    <span class="mb-hint">${cur==='backlog' ? '완료되지 않은 지난 건만 모아서 보고 있습니다' : `${shown}건 표시 중`}</span>`;
+    <div class="mb-row">
+      <select onchange="${setter}(this.value)">${opts}</select>
+      ${rangeUi}
+      <button class="backlog-btn ${cur==='backlog'?'on':''} ${backlog===0?'none':''}"
+        onclick="${backlog===0?'':`${setter}('backlog')`}">
+        ⚠ 지난달 이전 미완료 ${backlog}건${cur==='backlog'?' — 보는 중':''}
+      </button>
+      <span class="mb-hint">${cur==='backlog' ? '완료되지 않은 지난 건만 모아서 보고 있습니다' : `${shown}건 표시 중`}</span>
+    </div>
+    ${sumHtml}`;
 }
 function setAsMonth(v){ AS_MONTH_FILTER = v; AS_STAGE_FILTER = null; applyAsFilters(true); }
 function setPrMonth(v){ PR_MONTH_FILTER = v; document.getElementById('pr-status-filter').value='all'; refreshProductList(); }
@@ -1679,7 +1768,10 @@ function asProductLabel(r){
 }
 function filterAsItems(items){
   const statusF = document.getElementById('as-status-filter').value;
+  const checkF = (document.getElementById('as-check-filter')||{}).value || 'all';
   items = items.filter(r=>matchMonth(r,'as',AS_MONTH_FILTER));
+  if(checkF==='unchecked') items = items.filter(r=>!r.checked_at);
+  if(checkF==='checked')   items = items.filter(r=>!!r.checked_at);
   const qF = document.getElementById('as-q-filter').value.trim().toLowerCase();
   return items.filter(r=>{
     if(AS_CATEGORY_FILTER !== 'all' && (r.category||'hq') !== AS_CATEGORY_FILTER) return false;
@@ -1697,16 +1789,31 @@ function asRowHtml(r){
      실제 접수일이 달라서, 목록에 입력 시각을 보여주면 순서·날짜가 실제와 안 맞아 헷갈립니다. */
   const days = daysSince(r.received_date || r.created_at);
   const overdue = !done && days>=3;
-  return `<div class="row ${selected?'selected':''}" onclick="selectAsItem(${r.id})">
-    <div class="top"><span class="pname">${esc(asProductLabel(r))}</span></div>
-    <div class="meta">${CURRENT_STORE_ID==='all'?`<b>${esc(storeName(r.store_id))}</b>`:esc(storeName(r.store_id))} · ${esc(r.customer_name||'-')} · 등록 ${esc(r.requested_by||'-')} · ${fmtDateOnly(r.received_date || r.created_at)} 접수</div>
-    <div class="badges">
-      <span class="tag">${esc(AS_CATEGORY_LABEL[r.category] || '본사 제품')}</span>
+  /* 담당자가 한 화면에서 많은 건을 훑어야 해서 한 줄로 압축했습니다.
+     확인 체크 → 접수일 → 매장 → 제품 → 고객 → 상태 순으로 눈이 흐르게 배치합니다. */
+  const checked = !!r.checked_at;
+  return `<div class="row cmp ${selected?'selected':''} ${checked?'checked':''}" onclick="selectAsItem(${r.id})">
+    <button class="chk ${checked?'on':''}" title="${checked?'확인 완료 — 누르면 해제':'실물 확인했으면 체크'}"
+      onclick="event.stopPropagation();toggleAsChecked(${r.id}, ${!checked})">${checked?'✓':''}</button>
+    <span class="c-date">${fmtDateOnly(r.received_date || r.created_at)}</span>
+    <span class="c-store">${esc(storeName(r.store_id))}</span>
+    <span class="c-prod">${esc(asProductLabel(r))}</span>
+    <span class="c-cust">${esc(r.customer_name||'-')}</span>
+    <span class="c-tags">
       <span class="tag ${done?'status-purchased':''}">${esc(ALL_STATUS_LABELS_AS[r.status] || r.status)}</span>
-      ${!done ? `<span class="tag ${overdue?'overdue-tag':''}">${days===0?'오늘 접수':days+'일째'}</span>` : ''}
-      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷 ${r.photo_urls.length}</span>` : ''}
-    </div>
+      ${!done && overdue ? `<span class="tag overdue-tag">${days}일째</span>` : ''}
+      ${!r.service_method ? '<span class="tag" style="background:#fdeaea;color:#c92a2a;">방식 미확인</span>' : ''}
+      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷</span>` : ''}
+    </span>
   </div>`;
+}
+async function toggleAsChecked(id, on){
+  const patch = on ? { checked_at: new Date().toISOString(), checked_by: ME.name }
+                   : { checked_at: null, checked_by: null };
+  const { error } = await sb.from('resv_as_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast(on ? '확인 완료로 표시했습니다' : '확인을 해제했습니다');
+  refreshAsList();
 }
 function asPipelineHtml(r){
   const flow = asFlow(r);
@@ -1842,6 +1949,7 @@ async function revertAsStatus(id){
 }
 document.getElementById('as-store-filter').addEventListener('change', refreshAsList);
 document.getElementById('as-status-filter').addEventListener('change', ()=>{ AS_STAGE_FILTER=null; applyAsFilters(true); });
+document.getElementById('as-check-filter').addEventListener('change', ()=> applyAsFilters(true));
 document.getElementById('as-q-filter').addEventListener('input', ()=> applyAsFilters(true));
 document.getElementById('as-category-tabs').addEventListener('click', (e)=>{
   const b = e.target.closest('button'); if(!b) return;
@@ -1889,7 +1997,8 @@ function renderAsProductArea(){
       });
     }
   } else {
-    area.innerHTML = `<label>제품명 / 기기명</label><input id="f-device" placeholder="예: 타사 기기·제품명">`;
+    area.innerHTML = `<label>제품명 / 기기명</label><input id="f-device" placeholder="예: 타사 기기·제품명">
+      <label>색상 / 종류</label><input id="f-device-color" placeholder="예: 블랙 / 블루라즈">`;
   }
   renderAsReasonArea();
 }
@@ -1988,6 +2097,10 @@ async function submitAsRequest(){
   } else {
     device_name = document.getElementById('f-device').value.trim();
     if(!device_name){ toast('제품명을 입력해주세요'); return; }
+    /* 타사 제품도 색상을 따로 남겨야 통계에서 제품 기준으로 묶을 수 있습니다. */
+    const dcolor = (document.getElementById('f-device-color')||{value:''}).value.trim();
+    if(dcolor){ product_option = dcolor; device_name = device_name + ' ' + dcolor; }
+    product_family = document.getElementById('f-device').value.trim();
   }
   const methodBtn = document.querySelector('#f-as-method-toggle button.active');
   const contactBtn = document.querySelector('#f-as-contact-toggle button.active');
@@ -2220,6 +2333,55 @@ function refreshAsSymptomRank(as){
       <div class="rank-case-wrap"><div class="rank-case-list" id="${caseId}">${cases}</div></div>`;
   }).join('');
 }
+/* 제품 기준 통합 집계.
+   같은 제품이라도 색상·불량사유가 다르면 따로 세어져서 "이 제품이 전체적으로 몇 개 나갔는지"를
+   알 수 없다는 담당자 의견에 따라, 색상을 떼고 제품 단위로 묶어 총량과 사유별 내역을 함께 봅니다. */
+function asProductGroupKey(r){
+  if(r.product_family){
+    return [r.product_family, r.product_type].filter(Boolean).join(' ');
+  }
+  return (r.device_name || '-').trim();
+}
+function asDefectLabel(r){
+  return (r.defect_reason || r.symptom_memo || '사유 미기재').trim().replace(/\s*\[접수일[^\]]*\]/,'');
+}
+function refreshAsProductRank(rows){
+  const wrap = document.getElementById('as-product-rank');
+  if(!wrap) return;
+  const groups = {};
+  rows.forEach(r=>{
+    const k = asProductGroupKey(r);
+    if(!groups[k]) groups[k] = { total:0, reasons:{}, cases:[] };
+    groups[k].total++;
+    const d = asDefectLabel(r);
+    groups[k].reasons[d] = (groups[k].reasons[d]||0)+1;
+    groups[k].cases.push(r);
+  });
+  const ranked = Object.entries(groups).sort((a,b)=>b[1].total-a[1].total).slice(0,15);
+  document.getElementById('as-product-total').textContent = `제품 ${Object.keys(groups).length}종 · 총 ${rows.length}건`;
+  if(!ranked.length){ wrap.innerHTML = '<div class="empty">데이터 없음</div>'; return; }
+  const max = ranked[0][1].total || 1;
+  wrap.innerHTML = ranked.map(([name,g],i)=>{
+    const reasons = Object.entries(g.reasons).sort((a,b)=>b[1]-a[1]);
+    const top = reasons.slice(0,4);
+    const etc = reasons.slice(4).reduce((a,[,c])=>a+c,0);
+    const detail = top.map(([rn,c])=>`<div class="pr-reason"><span>${esc(rn)}</span><b>${c}개</b></div>`).join('')
+      + (etc? `<div class="pr-reason"><span>기타 ${reasons.length-4}종</span><b>${etc}개</b></div>`:'');
+    return `<div class="rank-bar-row clickable" onclick="toggleProdCase(${i})">
+        <span class="rank-bar-no">${i+1}</span>
+        <span class="rank-bar-wrap"><span class="rank-bar-fill" style="width:${g.total/max*100}%"></span>
+          <span class="rank-bar-label">${esc(name)}</span></span>
+        <span class="rank-bar-count">${g.total}개</span>
+      </div>
+      <div class="rank-case-wrap"><div class="rank-case-list" id="prod-case-${i}">
+        <div class="pr-reason-head">불량 사유별 내역</div>${detail}
+      </div></div>`;
+  }).join('');
+}
+function toggleProdCase(i){
+  const el = document.getElementById('prod-case-'+i);
+  if(el) el.classList.toggle('open');
+}
 async function refreshAsStats(){
   if(!ME) return;
   const storeFilter = document.getElementById('as-stat-store-filter').value;
@@ -2246,7 +2408,10 @@ async function refreshAsStats(){
     <div class="stat-card"><div class="label">처리 완료율</div><div class="value">${doneRate}%</div></div>
   `;
 
-  /* --- 중복 증상 TOP (메인 지표) --- */
+  /* --- 제품별 A/S 발생 순위 (색상·사유 무관하게 제품 기준으로 통합) --- */
+  refreshAsProductRank(as);
+
+  /* --- 중복 증상 TOP --- */
   refreshAsSymptomRank(as);
 
   /* --- AS 접수 제품 Top 랭킹 --- */

@@ -159,14 +159,15 @@ function serve(){
 
   const row1 = await page.textContent('#as-list');
   assert(row1.includes('그래피티C') && row1.includes('김고객'), 'AS 목록에 신규 접수 표시');
-  assert(row1.includes('등록 실장님'), '선택한 접수자(실장님)가 등록자로 저장됨');
-  assert(row1.includes('본사 제품'), '목록 카테고리 배지 = 본사 제품');
   assert(row1.includes('접수'), '목록 상태 배지 = 접수(초기 상태)');
+  assert(await page.isVisible('#as-list .row.cmp .chk'), '목록 각 줄에 확인 체크 버튼 표시');
 
   // 상세 열기 + 파이프라인 확인 (hq flow: 접수완료 -> ERP 기입완료, 2단계)
   await page.click('#as-list .row');
   await page.waitForTimeout(200);
   const detailHtml = await page.textContent('#as-detail');
+  assert(detailHtml.includes('등록 실장님'), '선택한 접수자(실장님)가 등록자로 저장됨');
+  assert(detailHtml.includes('본사 제품'), '상세 카테고리 배지 = 본사 제품');
   assert(detailHtml.includes('불량 사유') && detailHtml.includes('인식·접촉 불량'), '상세에 불량사유 노출');
   assert(detailHtml.includes('상세 내용') && detailHtml.includes('흡입이 간헐적'), '상세에 defect_detail 노출');
   const nodeCountHq = await page.$$eval('#as-detail .pipeline .node', els => els.length);
@@ -221,19 +222,29 @@ function serve(){
   // ================= AS 통계 — 중복 증상 집계 확인 =================
   await page.click('.sidebar nav button[data-tab="asstats"]');
   await page.waitForTimeout(300);
+  assert(await page.isVisible('#as-product-rank'), 'AS 통계에 제품별 발생 순위 표시');
+  const prodRank = await page.textContent('#as-product-rank');
+  assert(prodRank.includes('그래피티C'), '제품별 순위에 제품 표시(색상 제외 통합)');
+  const prodTotal = await page.textContent('#as-product-total');
+  assert(prodTotal.includes('제품') && prodTotal.includes('건'), '제품 종류 수·총 건수 요약 표시');
+  await page.click('#as-product-rank .rank-bar-row');
+  await page.waitForTimeout(250);
+  assert((await page.$$eval('#as-product-rank .rank-case-list.open', els=>els.length)) >= 1, '제품 클릭 시 불량 사유별 내역 펼쳐짐');
+  assert((await page.textContent('#as-product-rank .rank-case-list.open')).includes('불량 사유별 내역'), '펼친 내역에 사유별 수치 표시');
+
   const statsHtml = await page.textContent('#as-symptom-rank');
   assert(statsHtml.includes('그래피티C'), '통계 - 증상 랭킹에 그래피티C 항목 표시');
   assert(statsHtml.includes('인식·접촉 불량') || statsHtml.includes('전원이 안'), '통계 - 증상 라벨(불량사유/메모) 표시');
 
   // 케이스 목록 펼치기
-  const firstRow = await page.$('.rank-bar-row.clickable');
+  const firstRow = await page.$('#as-symptom-rank .rank-bar-row.clickable');
   assert(!!firstRow, '증상 랭킹 바 존재');
   if(firstRow){
     await firstRow.click();
     await page.waitForTimeout(150);
-    const caseListOpen = await page.$$eval('.rank-case-list.open', els => els.length);
+    const caseListOpen = await page.$$eval('#as-symptom-rank .rank-case-list.open', els => els.length);
     assert(caseListOpen >= 1, '증상 클릭 시 케이스 목록 펼쳐짐');
-    const caseText = await page.textContent('.rank-case-list.open');
+    const caseText = await page.textContent('#as-symptom-rank .rank-case-list.open');
     assert(caseText.includes('김고객') || caseText.includes('박고객'), '펼쳐진 케이스에 고객 정보 표시');
   }
 
@@ -453,6 +464,45 @@ function serve(){
   const editedDetail = await page.textContent('#as-detail');
   assert(editedDetail.includes('수정된고객'), '수정한 고객명이 상세에 반영됨');
   assert(editedDetail.includes('단순접수'), '수정한 접수방식이 반영됨');
+
+  // ================= 담당자 피드백 반영 항목 =================
+  // 확인 체크 / 미확인 필터
+  await page.click('#as-list .row.cmp .chk');
+  await page.waitForTimeout(450);
+  assert((await page.$$eval('#as-list .row.cmp .chk.on', els=>els.length)) >= 1, '확인 체크가 목록에 반영됨');
+  await page.selectOption('#as-check-filter', 'unchecked');
+  await page.waitForTimeout(400);
+  assert((await page.$$eval('#as-list .row.cmp .chk.on', els=>els.length)) === 0, '"미확인만" 필터에서 확인된 건은 제외');
+  await page.selectOption('#as-check-filter', 'checked');
+  await page.waitForTimeout(400);
+  assert((await page.$$eval('#as-list .row.cmp', els=>els.length)) >= 1, '"확인 완료만" 필터 동작');
+  await page.selectOption('#as-check-filter', 'all');
+  await page.waitForTimeout(300);
+
+  // 기간 직접 설정
+  await page.selectOption('#as-month-bar select', 'range');
+  await page.waitForTimeout(350);
+  assert(await page.isVisible('#as-month-bar .mb-range'), '접수 화면에 기간 직접 설정 입력칸 표시');
+  await page.fill('#as-month-bar .mb-range input:nth-of-type(1)', '2030-01-01');
+  await page.waitForTimeout(400);
+  assert((await page.$$eval('#as-list .row.cmp', els=>els.length)) === 0, '미래 기간 지정 시 목록 0건');
+  await page.fill('#as-month-bar .mb-range input:nth-of-type(1)', '2020-01-01');
+  await page.waitForTimeout(400);
+  assert((await page.$$eval('#as-list .row.cmp', els=>els.length)) >= 1, '넓은 기간 지정 시 목록 복구');
+
+  // 매장별 접수 수량 집계
+  assert(await page.isVisible('#as-month-bar .store-sum'), '매장별 접수 수량 집계 표시');
+  const sumTxt = await page.textContent('#as-month-bar .store-sum');
+  assert(sumTxt.includes('합계'), '매장별 집계에 합계 표시');
+
+  // 타사 제품 색상 입력란
+  await page.click('#as-new-btn');
+  await page.waitForTimeout(250);
+  await page.click('#f-as-cat-toggle button[data-cat="other"]');
+  await page.waitForTimeout(200);
+  assert(await page.isVisible('#f-device-color'), '타사 제품 접수에 색상 입력란 표시');
+  await page.click('#modal-overlay .modal-close, #modal-body button:has-text("취소")').catch(()=>{});
+  await page.waitForTimeout(200);
 
   console.log('\n--- console/page errors captured ---');
   errors.forEach(e => console.log(e));
