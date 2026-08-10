@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위베이프 고객 예약 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{
+    --yellow:#FFC800;
+    --yellow-dark:#E0AF00;
+    --black:#111111;
+    --white:#ffffff;
+    --bg:#f4f4f5;
+    --sidebar-bg:#fafafa;
+    --border:#e2e2e5;
+    --gray:#8a8a90;
+    --red:#e5484d;
+    --green:#2f9e44;
+    --blue:#1c7ed6;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;}
+
+  /* ---------- 로그인 화면 ---------- */
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--black);}
+  .login-box{background:var(--white);border-radius:16px;padding:40px 36px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+  .login-box h1{font-size:20px;margin:0 0 4px;}
+  .login-box p{color:var(--gray);font-size:13px;margin:0 0 24px;}
+  .login-box label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px;}
+  .login-box select, .login-box input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;}
+  .pin-dots{display:flex;gap:10px;justify-content:center;margin:18px 0 6px;}
+  .pin-dots span{width:14px;height:14px;border-radius:50%;border:2px solid var(--black);}
+  .pin-dots span.filled{background:var(--yellow);border-color:var(--yellow-dark);}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+  .keypad button{padding:14px 0;font-size:18px;font-weight:600;border:1.5px solid var(--border);border-radius:10px;background:var(--white);}
+  .keypad button:active{background:var(--bg);}
+  #login-error{color:var(--red);font-size:13px;text-align:center;min-height:18px;margin-top:10px;}
+
+  /* ---------- 앱 레이아웃 (좌측 사이드바 + 본문) ---------- */
+  #app{display:none;}
+  .app-shell{display:flex;min-height:100vh;background:var(--white);position:relative;}
+
+  .sidebar{width:214px;flex-shrink:0;background:var(--sidebar-bg);border-right:1px solid var(--border);padding:18px 12px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+  .sidebar .brand{font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;margin:2px 8px 20px;}
+  .sidebar .brand .dot{width:8px;height:8px;background:var(--yellow);border-radius:50%;}
+  .sidebar nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+  .sidebar nav button{text-align:left;padding:11px 12px;border-radius:8px;border:none;border-left:3px solid transparent;background:none;font-size:13px;font-weight:700;color:var(--gray);}
+  .sidebar nav button.active{background:#fff;color:var(--black);border-left-color:var(--yellow);box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .sidebar .who{margin-top:auto;padding:14px 10px 4px;border-top:1px solid var(--border);font-size:11.5px;color:var(--gray);}
+  .sidebar .who b{display:block;color:var(--black);font-size:13px;margin-bottom:2px;}
+  .sidebar .who button{margin-top:9px;width:100%;padding:8px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:11.5px;color:#555;}
+
+  .mobile-topbar{display:none;}
+  .drawer-overlay{display:none;}
+  @media (max-width:860px){
+    .mobile-topbar{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:30;}
+    .mobile-topbar button.hamburger{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:16px;flex-shrink:0;}
+    .mobile-topbar .title{font-weight:800;font-size:14px;}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;height:100%;z-index:40;transform:translateX(-100%);transition:transform .22s ease;box-shadow:2px 0 16px rgba(0,0,0,.18);}
+    .sidebar.open{transform:translateX(0);}
+    .drawer-overlay.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35;}
+  }
+
+  .main-area{flex:1;min-width:0;padding:22px;max-width:1180px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .type-tabs{display:flex;gap:6px;margin-bottom:14px;}
+  .type-tabs button{padding:8px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:700;color:#555;}
+  .type-tabs button.active{background:var(--black);color:var(--yellow);border-color:var(--black);}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .toolbar .filters{display:flex;gap:8px;flex-wrap:wrap;}
+  .toolbar select, .toolbar input[type=date]{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);}
+  .btn{padding:10px 16px;border-radius:8px;border:none;font-weight:700;font-size:13px;}
+  .btn-primary{background:var(--yellow);color:var(--black);}
+  .btn-primary:hover{background:var(--yellow-dark);}
+  .btn-outline{background:var(--white);border:1.5px solid var(--border);color:var(--black);}
+  .btn-danger{background:#fff0f0;color:var(--red);border:1.5px solid #ffd6d6;}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:6px;}
+
+  /* ---------- 목록 + 상세패널 ---------- */
+  .md-layout{display:flex;gap:16px;align-items:flex-start;}
+  .md-list{width:300px;flex-shrink:0;}
+  .md-list .row{padding:11px 12px;border-radius:9px;margin-bottom:6px;border:1.5px solid var(--border);background:#fff;cursor:pointer;}
+  .md-list .row:hover{border-color:#ccc;}
+  .md-list .row.selected{background:#fffceb;border-color:var(--yellow-dark);}
+  .md-list .row .top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+  .md-list .row .pname{font-weight:700;font-size:13px;}
+  .md-list .row .meta{font-size:11px;color:var(--gray);margin-top:4px;line-height:1.5;}
+  .md-list .row .badges{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+  .tag{display:inline-block;font-size:10.5px;background:var(--bg);border-radius:5px;padding:2px 7px;color:#555;font-weight:700;}
+  .tag.type-unstocked{background:#eaf3ff;color:#1c5fae;}
+  .tag.type-oos{background:#fff2e0;color:#a9600c;}
+  .tag.status-rejected{background:#ffe3e3;color:#c92a2a;}
+  .tag.status-purchased{background:#e6f6ea;color:#217a35;}
+
+  .md-detail{flex:1;min-width:0;}
+  .detail-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:22px;}
+  .detail-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:10px;}
+  .detail-card h2{margin:0 0 4px;font-size:18px;}
+  .detail-card .sub{font-size:12.5px;color:var(--gray);}
+  .detail-card .badges{display:flex;gap:6px;flex-wrap:wrap;}
+  .detail-card .field{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f2f2f3;font-size:13px;gap:12px;}
+  .detail-card .field span:first-child{color:var(--gray);flex-shrink:0;}
+  .detail-card .field b{color:#222;font-weight:700;text-align:right;}
+  .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+  .back-btn{display:none;}
+  .empty-detail{color:var(--gray);font-size:13px;text-align:center;padding:60px 20px;border:1.5px dashed var(--border);border-radius:14px;}
+
+  @media (max-width:860px){
+    .main-area{padding:16px;}
+    .md-list{width:100%;}
+    .back-btn{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--gray);font-size:12.5px;font-weight:700;margin-bottom:10px;padding:0;}
+    .md-layout.stacked{display:block;}
+    .md-layout.stacked .md-detail{display:none;}
+    .md-layout.stacked.show-detail .md-list{display:none;}
+    .md-layout.stacked.show-detail .md-detail{display:block;}
+  }
+
+  /* ---------- 모달 ---------- */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;align-items:center;justify-content:center;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--white);border-radius:14px;padding:24px;width:420px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+  .modal h2{margin:0 0 16px;font-size:17px;}
+  .modal label{display:block;font-size:12.5px;font-weight:700;margin:12px 0 5px;color:#333;}
+  .modal input, .modal select, .modal textarea{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;}
+  .modal textarea{resize:vertical;min-height:60px;}
+  .modal .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+  .modal-actions button{flex:none;}
+  .type-toggle{display:flex;gap:8px;margin-top:4px;}
+  .type-toggle button{flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:700;color:#555;}
+  .type-toggle button.active{background:var(--black);color:var(--yellow);border-color:var(--black);}
+
+  /* ---------- 통계 ---------- */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px;}
+  .stat-card{background:var(--white);border-radius:12px;padding:16px;border:1px solid var(--border);}
+  .stat-card .label{font-size:12.5px;color:var(--gray);margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:800;}
+  .stat-card .sub{font-size:12px;color:var(--gray);margin-top:4px;}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-box{background:var(--white);border-radius:12px;padding:16px;border:1px solid var(--border);}
+  .chart-box h3{font-size:14px;margin:0 0 12px;}
+  .rank-list{list-style:none;padding:0;margin:0;}
+  .rank-list li{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bg);font-size:13.5px;}
+  .rank-list li .n{color:var(--gray);width:22px;display:inline-block;}
+  @media (max-width:800px){.chart-grid{grid-template-columns:1fr;}}
+
+  /* ---------- 사진 첨부 ---------- */
+  .photo-input-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .photo-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0;}
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .photo-thumb .rm{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:11px;line-height:1;padding:0;}
+  .photo-add-btn{width:64px;height:64px;border-radius:8px;border:1.5px dashed var(--border);background:#fafafa;font-size:11px;color:var(--gray);display:flex;align-items:center;justify-content:center;text-align:center;flex-shrink:0;}
+  .photo-hint{font-size:11px;color:var(--gray);margin-top:5px;}
+
+  .detail-photos{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px;}
+  .detail-photos img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;}
+  .photo-lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:80;align-items:center;justify-content:center;}
+  .photo-lightbox.open{display:flex;}
+  .photo-lightbox img{max-width:92vw;max-height:88vh;border-radius:6px;}
+  .photo-lightbox .close-lb{position:absolute;top:16px;right:20px;background:none;border:none;color:#fff;font-size:26px;}
+  .tag.has-photo{background:#f1f0ff;color:#5a4dbf;}
+
+  .empty{color:var(--gray);font-size:13px;padding:20px;text-align:center;}
+  .badge-role{font-size:11px;background:var(--yellow);color:var(--black);padding:2px 7px;border-radius:5px;font-weight:700;}
+  table.settings-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.settings-table th, table.settings-table td{padding:9px 8px;border-bottom:1px solid var(--bg);text-align:left;}
+  table.settings-table th{color:var(--gray);font-weight:600;font-size:12px;}
+  .section-title{font-size:15px;font-weight:800;margin:26px 0 10px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--black);color:var(--white);padding:11px 20px;border-radius:8px;font-size:13.5px;z-index:100;display:none;}
+</style>
+</head>
+<body>
+
+<!-- ================= 로그인 화면 ================= -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>위베이프 예약관리</h1>
+    <p>이름을 고르고 PIN 4자리를 입력하세요</p>
+
+    <label>직원 이름</label>
+    <select id="login-staff"><option value="">불러오는 중...</option></select>
+
+    <div class="pin-dots" id="pin-dots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="keypad" id="keypad"></div>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ================= 메인 앱 ================= -->
+<div id="app">
+  <div class="mobile-topbar">
+    <button class="hamburger" id="hamburger-btn">☰</button>
+    <span class="title" id="mobile-title">상품 예약</span>
+  </div>
+
+  <div class="app-shell">
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+      <nav>
+        <button data-tab="product" class="active" data-title="상품 예약">상품 예약 (미취급·품절)</button>
+        <button data-tab="as" data-title="AS 접수">AS 접수</button>
+        <button data-tab="prstats" data-title="예약 통계">예약 통계</button>
+        <button data-tab="asstats" data-title="AS 통계">AS 통계</button>
+        <button data-tab="settings" data-title="설정">설정</button>
+      </nav>
+      <div class="who">
+        <span id="who-info"><b></b></span>
+        <button id="logout-btn">로그아웃</button>
+      </div>
+    </div>
+
+    <div class="main-area">
+      <!-- ---------- 상품 예약 (미취급 + 품절) ---------- -->
+      <section class="view active" id="view-product">
+        <div class="type-tabs" id="pr-type-tabs">
+          <button data-type="all" class="active">전체</button>
+          <button data-type="unstocked">미취급 상품</button>
+          <button data-type="out_of_stock">품절 상품</button>
+        </div>
+        <div class="toolbar">
+          <div class="filters">
+            <select id="pr-store-filter"><option value="all">전체 매장</option></select>
+            <select id="pr-status-filter">
+              <option value="all">전체 상태</option>
+              <option value="requested">문의접수(검토대기)</option>
+              <option value="approved">발주가능</option>
+              <option value="rejected">발주불가</option>
+              <option value="arrived">입고완료</option>
+              <option value="contacted">연락완료</option>
+              <option value="purchased">구매완료</option>
+              <option value="abandoned">구매포기</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="pr-new-btn">+ 새 등록</button>
+        </div>
+
+        <div class="md-layout stacked" id="pr-md-root">
+          <div class="md-list" id="pr-list"></div>
+          <div class="md-detail">
+            <button class="back-btn" id="pr-back-btn">← 목록으로</button>
+            <div id="pr-detail"><div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- AS 접수 ---------- -->
+      <section class="view" id="view-as">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="as-store-filter"><option value="all">전체 매장</option></select>
+            <select id="as-status-filter">
+              <option value="all">전체 상태</option>
+              <option value="received">접수</option>
+              <option value="processing">처리중</option>
+              <option value="ready">고객안내대기</option>
+              <option value="completed">인계완료</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="as-new-btn">+ 새 AS 접수</button>
+        </div>
+
+        <div class="md-layout stacked" id="as-md-root">
+          <div class="md-list" id="as-list"></div>
+          <div class="md-detail">
+            <button class="back-btn" id="as-back-btn">← 목록으로</button>
+            <div id="as-detail"><div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 예약 통계 (미취급 + 품절) ---------- -->
+      <section class="view" id="view-prstats">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="pr-stat-store-filter"><option value="all">전체 매장</option></select>
+            <select id="pr-stat-type-filter">
+              <option value="all">전체 유형</option>
+              <option value="unstocked">미취급 상품</option>
+              <option value="out_of_stock">품절 상품</option>
+            </select>
+            <select id="pr-stat-period">
+              <option value="7">최근 7일</option>
+              <option value="30" selected>최근 30일</option>
+              <option value="90">최근 90일</option>
+              <option value="all">전체 기간</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="stat-grid" id="pr-stat-cards"></div>
+
+        <div class="chart-grid">
+          <div class="chart-box">
+            <h3>문의 Top 10 (많이 찾는 순, 발주 여부 무관)</h3>
+            <ol class="rank-list" id="rank-product"></ol>
+          </div>
+          <div class="chart-box">
+            <h3>접수 사유별 통계</h3>
+            <canvas id="chart-reason-product" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>발주 가능 / 불가 비율</h3>
+            <canvas id="chart-orderable" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>매장별 문의 건수 (전체 매장 기준 비교)</h3>
+            <canvas id="chart-store-product" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>미취급 / 품절 유형별 건수</h3>
+            <canvas id="chart-type-product" height="220"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- AS 통계 ---------- -->
+      <section class="view" id="view-asstats">
+        <div class="toolbar">
+          <div class="filters">
+            <select id="as-stat-store-filter"><option value="all">전체 매장</option></select>
+            <select id="as-stat-period">
+              <option value="7">최근 7일</option>
+              <option value="30" selected>최근 30일</option>
+              <option value="90">최근 90일</option>
+              <option value="all">전체 기간</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="stat-grid" id="as-stat-cards"></div>
+
+        <div class="chart-grid">
+          <div class="chart-box">
+            <h3>AS 접수 기기/제품 Top 10</h3>
+            <ol class="rank-list" id="rank-as-device"></ol>
+          </div>
+          <div class="chart-box">
+            <h3>접수 사유(증상)별 통계</h3>
+            <canvas id="chart-reason-as" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>처리 결과 비율</h3>
+            <canvas id="chart-as-result" height="220"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>매장별 AS 접수 건수 (전체 매장 기준 비교)</h3>
+            <canvas id="chart-store-as" height="220"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 설정 ---------- -->
+      <section class="view" id="view-settings">
+        <div id="settings-guard" class="empty">실장님/관리자만 접근할 수 있는 화면입니다.</div>
+        <div id="settings-body" style="display:none;">
+          <div class="section-title">직원 관리</div>
+          <table class="settings-table" id="staff-table"><thead><tr><th>이름</th><th>권한</th><th>담당매장</th><th>상태</th><th></th></tr></thead><tbody></tbody></table>
+          <button class="btn btn-outline btn-sm" id="staff-add-btn" style="margin-top:10px;">+ 직원 추가</button>
+
+          <div class="section-title">접수 사유 관리 — 상품 예약(미취급·품절)</div>
+          <table class="settings-table" id="reason-pr-table"><thead><tr><th>사유</th><th>상태</th><th></th></tr></thead><tbody></tbody></table>
+          <button class="btn btn-outline btn-sm" id="reason-pr-add-btn" style="margin-top:10px;">+ 사유 추가</button>
+
+          <div class="section-title">접수 사유 관리 — AS 접수</div>
+          <table class="settings-table" id="reason-as-table"><thead><tr><th>사유</th><th>상태</th><th></th></tr></thead><tbody></tbody></table>
+          <button class="btn btn-outline btn-sm" id="reason-as-add-btn" style="margin-top:10px;">+ 사유 추가</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 모달 컨테이너 (JS가 채워넣음) ================= -->
+<div class="overlay" id="modal-overlay"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
+<div class="photo-lightbox" id="photo-lightbox" onclick="closeLightbox()">
+  <button class="close-lb" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+</div>
+
+<script>
+/* =========================================================
+   설정 — 여기에 실제 Supabase 프로젝트 정보를 넣으세요.
+   Supabase 대시보드 > Settings > API 에서 확인 가능
+   기존 POS와 같은 프로젝트 값을 그대로 쓰면 됩니다.
+   ========================================================= */
+const SUPABASE_URL = 'https://jpxiyfwljxnraosleylg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_D7Bsq7P3t2ug6uG0oFW8hA_zsbviCMR';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------------- 전역 상태 ---------------- */
+let ME = null;            // {id, name, role, store_id}
+let STORES = [];          // [{id,name}]
+let REASONS = {product_request:[], as:[]};
+let pinBuffer = '';
+
+let PR_ITEMS = [];
+let PR_SELECTED_ID = null;
+let PR_TYPE_FILTER = 'all';
+
+let AS_ITEMS = [];
+let AS_SELECTED_ID = null;
+
+let PENDING_PHOTOS = []; // [{blob, url}] — 등록 모달에서 아직 업로드 전인 사진들
+const PHOTO_BUCKET = 'resv-photos';
+const PHOTO_MAX = 5;
+
+const STATUS_LABEL_PR = {
+  requested:'문의접수', rejected:'발주불가', approved:'발주가능',
+  arrived:'입고완료', contacted:'연락완료', purchased:'구매완료', abandoned:'구매포기'
+};
+const STATUS_LABEL_AS = {
+  received:'접수', processing:'처리중', ready:'고객안내대기', completed:'인계완료'
+};
+const RESULT_LABEL_AS = {
+  free_repair:'무상수리', paid_repair:'유상수리', exchange:'교환', refund:'환불', unable:'처리불가'
+};
+const TYPE_LABEL_PR = { unstocked:'미취급 상품', out_of_stock:'품절 상품' };
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>{ t.style.display='none'; }, 2400);
+}
+function fmtDate(s){ if(!s) return '-'; const d = new Date(s); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function storeName(id){ const s = STORES.find(x=>String(x.id)===String(id)); return s? s.name : '-'; }
+function reasonLabel(type,id){ const r=(REASONS[type]||[]).find(x=>String(x.id)===String(id)); return r? r.label : ''; }
+function isMobileWidth(){ return window.innerWidth <= 860; }
+
+/* ================= 로그인 ================= */
+async function loadStaffOptions(){
+  const { data, error } = await sb.from('resv_staff_public').select('*').order('name');
+  const sel = document.getElementById('login-staff');
+  if(error){ sel.innerHTML = '<option value="">불러오기 실패 — 새로고침 해주세요</option>'; console.error(error); return; }
+  sel.innerHTML = '<option value="">이름 선택</option>' + data.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+}
+function renderPinDots(){
+  document.querySelectorAll('#pin-dots span').forEach((el,i)=>{
+    el.classList.toggle('filled', i < pinBuffer.length);
+  });
+}
+function buildKeypad(){
+  const keys = ['1','2','3','4','5','6','7','8','9','지움','0','확인'];
+  const kp = document.getElementById('keypad');
+  kp.innerHTML = keys.map(k=>`<button data-k="${k}">${k}</button>`).join('');
+  kp.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const k = b.dataset.k;
+      if(k === '지움'){ pinBuffer = pinBuffer.slice(0,-1); renderPinDots(); return; }
+      if(k === '확인'){ doLogin(); return; }
+      if(pinBuffer.length < 4){ pinBuffer += k; renderPinDots(); }
+      if(pinBuffer.length === 4){ doLogin(); }
+    });
+  });
+}
+async function doLogin(){
+  const staffId = document.getElementById('login-staff').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if(!staffId){ errEl.textContent = '이름을 선택해주세요.'; return; }
+  if(pinBuffer.length !== 4){ return; }
+  const { data, error } = await sb.rpc('resv_login', { p_staff_id: Number(staffId), p_pin: pinBuffer });
+  if(error || !data || data.length === 0){
+    errEl.textContent = 'PIN이 맞지 않습니다. 다시 입력해주세요.';
+    pinBuffer = ''; renderPinDots();
+    return;
+  }
+  ME = data[0];
+  localStorage.setItem('resv_me', JSON.stringify(ME));
+  enterApp();
+}
+function tryAutoLogin(){
+  const saved = localStorage.getItem('resv_me');
+  if(saved){ try{ ME = JSON.parse(saved); enterApp(); }catch(e){} }
+}
+document.getElementById('logout-btn').addEventListener('click', ()=>{
+  localStorage.removeItem('resv_me');
+  ME = null; pinBuffer=''; renderPinDots();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+});
+
+async function enterApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span>`;
+  await loadStores();
+  await loadReasons();
+  fillStoreFilters();
+  document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span> ${ME.store_id? storeName(ME.store_id) : '전매장'}`;
+  if(ME.role === 'manager' || ME.role === 'admin'){
+    document.getElementById('settings-guard').style.display='none';
+    document.getElementById('settings-body').style.display='block';
+  }
+  await refreshProductList();
+  await refreshAsList();
+  await refreshPrStats();
+  await refreshAsStats();
+  if(ME.role === 'manager' || ME.role === 'admin') await refreshSettings();
+}
+
+/* ================= 공통 로드 ================= */
+async function loadStores(){
+  const { data, error } = await sb.from('resv_stores').select('*').eq('active', true).order('sort_order');
+  if(!error) STORES = data;
+}
+async function loadReasons(){
+  const { data, error } = await sb.from('resv_reason_options').select('*').eq('active', true).order('sort_order');
+  if(!error){
+    REASONS.product_request = data.filter(r=>r.type==='product_request');
+    REASONS.as = data.filter(r=>r.type==='as');
+  }
+}
+function fillStoreFilters(){
+  // 직원 소속 매장과 무관하게 항상 전체 매장 중에서 선택할 수 있게 모든 매장을 나열합니다.
+  const opts = STORES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  ['pr-store-filter','as-store-filter','pr-stat-store-filter','as-stat-store-filter'].forEach(id=>{
+    document.getElementById(id).innerHTML = '<option value="all">전체 매장</option>' + opts;
+  });
+}
+
+/* ================= 사이드바 탭 전환 ================= */
+document.querySelectorAll('.sidebar nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.sidebar nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    document.getElementById('mobile-title').textContent = btn.dataset.title;
+    closeDrawer();
+    if(btn.dataset.tab === 'prstats') refreshPrStats();
+    if(btn.dataset.tab === 'asstats') refreshAsStats();
+  });
+});
+
+/* ================= 모바일 좌측 드로어 ================= */
+function openDrawer(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+document.getElementById('hamburger-btn').addEventListener('click', openDrawer);
+document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+/* ================= 모달 유틸 ================= */
+function openModal(html){
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', (e)=>{ if(e.target.id==='modal-overlay') closeModal(); });
+
+/* ================= 사진 첨부 공통 유틸 ================= */
+// 업로드/데이터 용량을 아끼기 위해 브라우저에서 미리 리사이즈·압축 후 올립니다.
+function compressImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(new Error('파일을 읽을 수 없습니다'));
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('이미지를 열 수 없습니다'));
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > height && width > maxDim){ height = Math.round(height * maxDim / width); width = maxDim; }
+        else if(height >= width && height > maxDim){ width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob=>{ blob ? resolve(blob) : reject(new Error('변환 실패')); }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function photoPickerHtml(){
+  return `
+    <label>사진 첨부 (선택, 최대 ${PHOTO_MAX}장)</label>
+    <input type="file" id="f-photo-input" accept="image/*" multiple style="display:none">
+    <div class="photo-input-row" id="photo-preview-row">
+      <button type="button" class="photo-add-btn" onclick="document.getElementById('f-photo-input').click()">+ 사진</button>
+    </div>
+    <div class="photo-hint">사진은 자동으로 용량을 줄여서 업로드됩니다</div>`;
+}
+function bindPhotoPicker(){
+  PENDING_PHOTOS = [];
+  renderPhotoPreview();
+  const input = document.getElementById('f-photo-input');
+  if(input) input.addEventListener('change', handlePhotoInputChange);
+}
+async function handlePhotoInputChange(e){
+  const files = Array.from(e.target.files || []);
+  e.target.value = ''; // 같은 파일 다시 선택 가능하도록 초기화
+  for(const file of files){
+    if(PENDING_PHOTOS.length >= PHOTO_MAX){ toast(`사진은 최대 ${PHOTO_MAX}장까지 첨부할 수 있습니다`); break; }
+    try{
+      const blob = await compressImage(file, 1280, 0.75);
+      PENDING_PHOTOS.push({ blob, url: URL.createObjectURL(blob) });
+    }catch(err){ console.error(err); toast('사진 처리 중 오류가 발생했습니다'); }
+  }
+  renderPhotoPreview();
+}
+function renderPhotoPreview(){
+  const row = document.getElementById('photo-preview-row');
+  if(!row) return;
+  const thumbs = PENDING_PHOTOS.map((p,i)=>`
+    <div class="photo-thumb"><img src="${p.url}"><button type="button" class="rm" onclick="removePendingPhoto(${i})">✕</button></div>
+  `).join('');
+  const addBtn = PENDING_PHOTOS.length < PHOTO_MAX ? `<button type="button" class="photo-add-btn" onclick="document.getElementById('f-photo-input').click()">+ 사진</button>` : '';
+  row.innerHTML = thumbs + addBtn;
+}
+function removePendingPhoto(i){ PENDING_PHOTOS.splice(i,1); renderPhotoPreview(); }
+async function uploadPendingPhotos(prefix){
+  const urls = [];
+  for(let i=0;i<PENDING_PHOTOS.length;i++){
+    const path = `${prefix}/${Date.now()}_${i}_${Math.random().toString(36).slice(2,8)}.jpg`;
+    const { error } = await sb.storage.from(PHOTO_BUCKET).upload(path, PENDING_PHOTOS[i].blob, { contentType:'image/jpeg' });
+    if(error){ console.error(error); toast('사진 업로드 실패: '+error.message); continue; }
+    const { data } = sb.storage.from(PHOTO_BUCKET).getPublicUrl(path);
+    if(data && data.publicUrl) urls.push(data.publicUrl);
+  }
+  return urls;
+}
+function detailPhotosHtml(urls){
+  if(!urls || !urls.length) return '';
+  return `<div class="detail-photos">${urls.map(u=>`<img src="${u}" onclick="openLightbox('${u}')">`).join('')}</div>`;
+}
+function openLightbox(url){
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('photo-lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('photo-lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+}
+function openAddPhotoModal(kind, id){
+  openModal(`
+    <h2>사진 추가</h2>
+    ${photoPickerHtml()}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" id="photo-save-btn" onclick="submitAddPhoto('${kind}', ${id})">업로드</button>
+    </div>
+  `);
+  bindPhotoPicker();
+}
+async function submitAddPhoto(kind, id){
+  if(!PENDING_PHOTOS.length){ toast('사진을 선택해주세요'); return; }
+  const btn = document.getElementById('photo-save-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '업로드 중...'; }
+  const table = kind==='product' ? 'resv_product_requests' : 'resv_as_requests';
+  const items = kind==='product' ? PR_ITEMS : AS_ITEMS;
+  const item = items.find(r=>String(r.id)===String(id));
+  const existing = (item && item.photo_urls) || [];
+  const newUrls = await uploadPendingPhotos(kind==='product' ? 'product' : 'as');
+  if(!newUrls.length){ if(btn){ btn.disabled=false; btn.textContent='업로드'; } return; }
+  const { error } = await sb.from(table).update({ photo_urls: [...existing, ...newUrls] }).eq('id', id);
+  if(error){ toast('저장 실패: '+error.message); if(btn){ btn.disabled=false; btn.textContent='업로드'; } return; }
+  closeModal(); toast('사진을 추가했습니다');
+  if(kind==='product') refreshProductList(); else refreshAsList();
+}
+
+/* =========================================================
+   상품 예약 (미취급 + 품절) — 목록 + 상세패널
+   ========================================================= */
+async function fetchProductRequests(){
+  let q = sb.from('resv_product_requests').select('*').order('created_at', {ascending:false});
+  const storeF = document.getElementById('pr-store-filter').value;
+  const statusF = document.getElementById('pr-status-filter').value;
+  if(storeF && storeF !== 'all') q = q.eq('store_id', Number(storeF));
+  if(statusF && statusF !== 'all') q = q.eq('status', statusF);
+  if(PR_TYPE_FILTER !== 'all') q = q.eq('request_type', PR_TYPE_FILTER);
+  const { data, error } = await q;
+  if(error){ console.error(error); return []; }
+  return data;
+}
+function prRowHtml(r){
+  const selected = String(r.id)===String(PR_SELECTED_ID);
+  const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
+  const statusClass = r.status==='rejected' ? 'status-rejected' : (r.status==='purchased' ? 'status-purchased' : '');
+  return `<div class="row ${selected?'selected':''}" onclick="selectProductItem(${r.id})">
+    <div class="top"><span class="pname">${r.product_name}</span></div>
+    <div class="meta">${storeName(r.store_id)} · ${r.customer_name||'-'} · ${fmtDate(r.created_at)}</div>
+    <div class="badges">
+      <span class="tag ${typeClass}">${TYPE_LABEL_PR[r.request_type]||'미취급 상품'}</span>
+      <span class="tag ${statusClass}">${STATUS_LABEL_PR[r.status]}</span>
+      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷 ${r.photo_urls.length}</span>` : ''}
+    </div>
+  </div>`;
+}
+function prDetailHtml(r){
+  const canReview = (ME.role==='manager'||ME.role==='admin') && r.status==='requested';
+  let actions = '';
+  if(canReview){
+    actions = `<button class="btn btn-primary" onclick="openReviewModal(${r.id})">검토하기 (발주가능/불가)</button>`;
+  } else if(r.status==='approved'){
+    actions = `<button class="btn btn-outline" onclick="markArrived(${r.id})">입고완료 처리</button>`;
+  } else if(r.status==='arrived'){
+    actions = `<button class="btn btn-outline" onclick="openContactModal(${r.id})">연락 기록</button>`;
+  } else if(r.status==='contacted'){
+    actions = `<button class="btn btn-primary" onclick="markPurchase(${r.id}, true)">구매완료</button>
+               <button class="btn btn-danger" onclick="markPurchase(${r.id}, false)">구매포기</button>`;
+  }
+  const typeClass = r.request_type==='out_of_stock' ? 'type-oos' : 'type-unstocked';
+  return `<div class="detail-card">
+    <div class="top-row">
+      <div>
+        <h2>${r.product_name}</h2>
+        <div class="sub">${storeName(r.store_id)} · 접수 ${fmtDate(r.created_at)} · 등록 ${r.requested_by}</div>
+      </div>
+      <div class="badges">
+        <span class="tag ${typeClass}">${TYPE_LABEL_PR[r.request_type]||'미취급 상품'}</span>
+        <span class="tag">${STATUS_LABEL_PR[r.status]}</span>
+      </div>
+    </div>
+    <div class="field"><span>고객 성함</span><b>${r.customer_name||'-'}</b></div>
+    <div class="field"><span>연락처</span><b>${r.customer_phone||'-'}</b></div>
+    <div class="field"><span>접수 사유</span><b>${reasonLabel('product_request', r.reason_id)||'-'}</b></div>
+    <div class="field"><span>메모</span><b>${r.memo||'-'}</b></div>
+    ${r.status==='rejected' && r.reject_reason? `<div class="field"><span>발주불가 사유</span><b style="color:var(--red)">${r.reject_reason}</b></div>`:''}
+    ${r.contact_result? `<div class="field"><span>연락 결과</span><b>${r.contact_result}</b></div>`:''}
+    ${r.status==='purchased' ? `<div class="field"><span>구매완료</span><b>${fmtDate(r.purchased_at)}</b></div>`:''}
+    ${detailPhotosHtml(r.photo_urls)}
+    <div class="detail-actions">${actions}<button class="btn btn-outline btn-sm" onclick="openAddPhotoModal('product', ${r.id})">+ 사진 추가</button></div>
+  </div>`;
+}
+function renderProductDetail(){
+  const item = PR_ITEMS.find(r=>String(r.id)===String(PR_SELECTED_ID));
+  document.getElementById('pr-detail').innerHTML = item ? prDetailHtml(item) : '<div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div>';
+}
+function selectProductItem(id){
+  PR_SELECTED_ID = id;
+  document.querySelectorAll('#pr-list .row').forEach(el=>el.classList.remove('selected'));
+  renderProductList(false);
+  renderProductDetail();
+  if(isMobileWidth()) document.getElementById('pr-md-root').classList.add('show-detail');
+}
+function renderProductList(resetSelection){
+  const list = document.getElementById('pr-list');
+  if(!PR_ITEMS.length){ list.innerHTML = '<div class="empty">해당 조건의 문의가 없습니다</div>'; if(resetSelection){ PR_SELECTED_ID=null; renderProductDetail(); } return; }
+  if(resetSelection && !PR_ITEMS.find(r=>String(r.id)===String(PR_SELECTED_ID))){
+    PR_SELECTED_ID = PR_ITEMS[0].id;
+  }
+  list.innerHTML = PR_ITEMS.map(prRowHtml).join('');
+}
+async function refreshProductList(){
+  PR_ITEMS = await fetchProductRequests();
+  renderProductList(true);
+  renderProductDetail();
+}
+document.getElementById('pr-store-filter').addEventListener('change', refreshProductList);
+document.getElementById('pr-status-filter').addEventListener('change', refreshProductList);
+document.getElementById('pr-back-btn').addEventListener('click', ()=>{
+  document.getElementById('pr-md-root').classList.remove('show-detail');
+});
+document.getElementById('pr-type-tabs').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#pr-type-tabs button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  PR_TYPE_FILTER = b.dataset.type;
+  refreshProductList();
+});
+
+/* --- 새 등록 (미취급/품절 탭 선택) --- */
+let newRequestType = 'unstocked';
+document.getElementById('pr-new-btn').addEventListener('click', ()=>{
+  newRequestType = (PR_TYPE_FILTER === 'out_of_stock') ? 'out_of_stock' : 'unstocked';
+  const storeOpts = STORES.map(s=>`<option value="${s.id}" ${String(ME.store_id)===String(s.id)?'selected':''}>${s.name}</option>`).join('');
+  const reasonOpts = REASONS.product_request.map(r=>`<option value="${r.id}">${r.label}</option>`).join('');
+  openModal(`
+    <h2>새 상품 예약 등록</h2>
+    <label>유형</label>
+    <div class="type-toggle" id="f-type-toggle">
+      <button type="button" data-type="unstocked" class="${newRequestType==='unstocked'?'active':''}">미취급 상품</button>
+      <button type="button" data-type="out_of_stock" class="${newRequestType==='out_of_stock'?'active':''}">품절 상품</button>
+    </div>
+    <label>매장 (전체 매장 중 선택 가능)</label><select id="f-store">${storeOpts}</select>
+    <label>제품명 (고객이 찾는 상품)</label><input id="f-product" placeholder="예: RELX 파이 맥스 머스캣">
+    <div class="row2">
+      <div><label>고객 성함</label><input id="f-cname" placeholder="홍길동"></div>
+      <div><label>연락처</label><input id="f-cphone" placeholder="010-0000-0000"></div>
+    </div>
+    <label>접수 사유</label><select id="f-reason"><option value="">선택 안함</option>${reasonOpts}</select>
+    <label>메모 (선택)</label><textarea id="f-memo" placeholder="추가로 참고할 내용"></textarea>
+    ${photoPickerHtml()}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitProductRequest()">등록</button>
+    </div>
+  `);
+  document.getElementById('f-type-toggle').addEventListener('click', (e)=>{
+    const b = e.target.closest('button'); if(!b) return;
+    newRequestType = b.dataset.type;
+    document.querySelectorAll('#f-type-toggle button').forEach(x=>x.classList.toggle('active', x===b));
+  });
+  bindPhotoPicker();
+});
+async function submitProductRequest(){
+  const product_name = document.getElementById('f-product').value.trim();
+  if(!product_name){ toast('제품명을 입력해주세요'); return; }
+  const btn = document.querySelector('#modal-body .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = PENDING_PHOTOS.length ? '사진 업로드 중...' : '등록 중...'; }
+  const photo_urls = await uploadPendingPhotos('product');
+  const payload = {
+    store_id: Number(document.getElementById('f-store').value),
+    product_name,
+    request_type: newRequestType,
+    customer_name: document.getElementById('f-cname').value.trim() || null,
+    customer_phone: document.getElementById('f-cphone').value.trim() || null,
+    reason_id: document.getElementById('f-reason').value || null,
+    memo: document.getElementById('f-memo').value.trim() || null,
+    requested_by: ME.name,
+    status: 'requested',
+    photo_urls
+  };
+  const { error } = await sb.from('resv_product_requests').insert(payload);
+  if(error){ toast('등록 실패: '+error.message); if(btn){ btn.disabled=false; btn.textContent='등록'; } return; }
+  closeModal(); toast('등록되었습니다'); refreshProductList();
+}
+
+/* --- 실장님 검토 (발주가능/불가) --- */
+function openReviewModal(id){
+  openModal(`
+    <h2>발주 가능 여부 검토</h2>
+    <p style="font-size:13px;color:var(--gray)">발주가 불가능한 제품이라면 사유를 꼭 남겨주세요. 직원이 고객에게 안내할 때 참고합니다.</p>
+    <label>발주 불가 사유 (발주불가 선택 시)</label>
+    <textarea id="f-reject-reason" placeholder="예: 단종된 제품 / 국내 미유통 / 정식 수입사 없음"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="submitReview(${id}, false)">발주불가</button>
+      <button class="btn btn-primary" onclick="submitReview(${id}, true)">발주가능</button>
+    </div>
+  `);
+}
+async function submitReview(id, approve){
+  const patch = approve
+    ? { status:'approved', reviewed_by: ME.name, reviewed_at: new Date().toISOString(), reject_reason: null }
+    : { status:'rejected', reviewed_by: ME.name, reviewed_at: new Date().toISOString(), reject_reason: document.getElementById('f-reject-reason').value.trim() || '사유 미기재' };
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast(approve? '발주가능으로 처리했습니다':'발주불가로 처리했습니다'); refreshProductList();
+}
+async function markArrived(id){
+  const { error } = await sb.from('resv_product_requests').update({ status:'arrived', arrived_at: new Date().toISOString() }).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('입고완료로 표시했습니다 (고객에게 연락해주세요)'); refreshProductList();
+}
+function openContactModal(id){
+  openModal(`
+    <h2>고객 연락 결과</h2>
+    <label>연락 결과</label>
+    <select id="f-contact-result">
+      <option value="연결됨 - 구매의사 확인중">연결됨 - 구매의사 확인중</option>
+      <option value="부재중 - 재시도 필요">부재중 - 재시도 필요</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitContact(${id})">저장</button>
+    </div>
+  `);
+}
+async function submitContact(id){
+  const result = document.getElementById('f-contact-result').value;
+  const patch = result.startsWith('연결됨')
+    ? { status:'contacted', contacted_at: new Date().toISOString(), contact_result: result }
+    : { contact_result: result }; // 부재중이면 상태는 arrived 유지, 시도 기록만 남김
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast('저장했습니다'); refreshProductList();
+}
+async function markPurchase(id, purchased){
+  const patch = purchased
+    ? { status:'purchased', purchased_at: new Date().toISOString() }
+    : { status:'abandoned' };
+  const { error } = await sb.from('resv_product_requests').update(patch).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast(purchased? '구매완료로 처리했습니다' : '구매포기로 처리했습니다'); refreshProductList();
+}
+
+/* =========================================================
+   AS 접수 — 목록 + 상세패널
+   ========================================================= */
+async function fetchAsRequests(){
+  let q = sb.from('resv_as_requests').select('*').order('created_at', {ascending:false});
+  const storeF = document.getElementById('as-store-filter').value;
+  const statusF = document.getElementById('as-status-filter').value;
+  if(storeF && storeF !== 'all') q = q.eq('store_id', Number(storeF));
+  if(statusF && statusF !== 'all') q = q.eq('status', statusF);
+  const { data, error } = await q;
+  if(error){ console.error(error); return []; }
+  return data;
+}
+function asRowHtml(r){
+  const selected = String(r.id)===String(AS_SELECTED_ID);
+  return `<div class="row ${selected?'selected':''}" onclick="selectAsItem(${r.id})">
+    <div class="top"><span class="pname">${r.device_name}</span></div>
+    <div class="meta">${storeName(r.store_id)} · ${r.customer_name||'-'} · ${fmtDate(r.created_at)}</div>
+    <div class="badges">
+      <span class="tag ${r.status==='completed'?'status-purchased':''}">${STATUS_LABEL_AS[r.status]}</span>
+      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷 ${r.photo_urls.length}</span>` : ''}
+    </div>
+  </div>`;
+}
+function asDetailHtml(r){
+  let actions = '';
+  if(r.status==='received') actions = `<button class="btn btn-outline" onclick="asSetStatus(${r.id},'processing')">처리중으로 변경</button>`;
+  else if(r.status==='processing') actions = `<button class="btn btn-outline" onclick="asSetStatus(${r.id},'ready')">고객안내대기로 변경</button>`;
+  else if(r.status==='ready') actions = `<button class="btn btn-primary" onclick="openAsCompleteModal(${r.id})">인계완료 처리</button>`;
+  return `<div class="detail-card">
+    <div class="top-row">
+      <div>
+        <h2>${r.device_name}</h2>
+        <div class="sub">${storeName(r.store_id)} · 접수 ${fmtDate(r.created_at)} · 등록 ${r.requested_by}</div>
+      </div>
+      <div class="badges"><span class="tag">${STATUS_LABEL_AS[r.status]}</span></div>
+    </div>
+    <div class="field"><span>고객 성함</span><b>${r.customer_name||'-'}</b></div>
+    <div class="field"><span>연락처</span><b>${r.customer_phone||'-'}</b></div>
+    <div class="field"><span>증상 / 사유</span><b>${reasonLabel('as', r.reason_id)||'-'}</b></div>
+    <div class="field"><span>메모</span><b>${r.symptom_memo||'-'}</b></div>
+    ${r.result? `<div class="field"><span>처리 결과</span><b>${RESULT_LABEL_AS[r.result]||r.result}</b></div>`:''}
+    ${detailPhotosHtml(r.photo_urls)}
+    <div class="detail-actions">${actions}<button class="btn btn-outline btn-sm" onclick="openAddPhotoModal('as', ${r.id})">+ 사진 추가</button></div>
+  </div>`;
+}
+function renderAsDetail(){
+  const item = AS_ITEMS.find(r=>String(r.id)===String(AS_SELECTED_ID));
+  document.getElementById('as-detail').innerHTML = item ? asDetailHtml(item) : '<div class="empty-detail">왼쪽 목록에서 항목을 선택하세요</div>';
+}
+function selectAsItem(id){
+  AS_SELECTED_ID = id;
+  renderAsList(false);
+  renderAsDetail();
+  if(isMobileWidth()) document.getElementById('as-md-root').classList.add('show-detail');
+}
+function renderAsList(resetSelection){
+  const list = document.getElementById('as-list');
+  if(!AS_ITEMS.length){ list.innerHTML = '<div class="empty">해당 조건의 AS 접수가 없습니다</div>'; if(resetSelection){ AS_SELECTED_ID=null; renderAsDetail(); } return; }
+  if(resetSelection && !AS_ITEMS.find(r=>String(r.id)===String(AS_SELECTED_ID))){
+    AS_SELECTED_ID = AS_ITEMS[0].id;
+  }
+  list.innerHTML = AS_ITEMS.map(asRowHtml).join('');
+}
+async function refreshAsList(){
+  AS_ITEMS = await fetchAsRequests();
+  renderAsList(true);
+  renderAsDetail();
+}
+document.getElementById('as-store-filter').addEventListener('change', refreshAsList);
+document.getElementById('as-status-filter').addEventListener('change', refreshAsList);
+document.getElementById('as-back-btn').addEventListener('click', ()=>{
+  document.getElementById('as-md-root').classList.remove('show-detail');
+});
+
+document.getElementById('as-new-btn').addEventListener('click', ()=>{
+  const storeOpts = STORES.map(s=>`<option value="${s.id}" ${String(ME.store_id)===String(s.id)?'selected':''}>${s.name}</option>`).join('');
+  const reasonOpts = REASONS.as.map(r=>`<option value="${r.id}">${r.label}</option>`).join('');
+  openModal(`
+    <h2>새 AS 접수</h2>
+    <label>매장 (전체 매장 중 선택 가능)</label><select id="f-store">${storeOpts}</select>
+    <label>기기명 / 모델명</label><input id="f-device" placeholder="예: RELX 크리에이터">
+    <div class="row2">
+      <div><label>고객 성함</label><input id="f-cname" placeholder="홍길동"></div>
+      <div><label>연락처</label><input id="f-cphone" placeholder="010-0000-0000"></div>
+    </div>
+    <label>증상 / 사유</label><select id="f-reason"><option value="">선택 안함</option>${reasonOpts}</select>
+    <label>메모 (선택)</label><textarea id="f-memo" placeholder="증상 상세, 구매일 등"></textarea>
+    ${photoPickerHtml()}
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitAsRequest()">등록</button>
+    </div>
+  `);
+  bindPhotoPicker();
+});
+async function submitAsRequest(){
+  const device_name = document.getElementById('f-device').value.trim();
+  if(!device_name){ toast('기기명을 입력해주세요'); return; }
+  const btn = document.querySelector('#modal-body .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = PENDING_PHOTOS.length ? '사진 업로드 중...' : '등록 중...'; }
+  const photo_urls = await uploadPendingPhotos('as');
+  const payload = {
+    store_id: Number(document.getElementById('f-store').value),
+    device_name,
+    customer_name: document.getElementById('f-cname').value.trim() || null,
+    customer_phone: document.getElementById('f-cphone').value.trim() || null,
+    reason_id: document.getElementById('f-reason').value || null,
+    symptom_memo: document.getElementById('f-memo').value.trim() || null,
+    requested_by: ME.name,
+    status: 'received',
+    photo_urls
+  };
+  const { error } = await sb.from('resv_as_requests').insert(payload);
+  if(error){ toast('등록 실패: '+error.message); if(btn){ btn.disabled=false; btn.textContent='등록'; } return; }
+  closeModal(); toast('AS 접수가 등록되었습니다'); refreshAsList();
+}
+async function asSetStatus(id, status){
+  const { error } = await sb.from('resv_as_requests').update({ status, updated_by: ME.name }).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('상태를 변경했습니다'); refreshAsList();
+}
+function openAsCompleteModal(id){
+  openModal(`
+    <h2>인계완료 처리</h2>
+    <label>처리 결과</label>
+    <select id="f-as-result">
+      <option value="free_repair">무상수리</option>
+      <option value="paid_repair">유상수리</option>
+      <option value="exchange">교환</option>
+      <option value="refund">환불</option>
+      <option value="unable">처리불가</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitAsComplete(${id})">완료 처리</button>
+    </div>
+  `);
+}
+async function submitAsComplete(id){
+  const result = document.getElementById('f-as-result').value;
+  const { error } = await sb.from('resv_as_requests').update({ status:'completed', result, updated_by: ME.name }).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast('인계완료로 처리했습니다'); refreshAsList();
+}
+
+/* =========================================================
+   예약 통계 (미취급 + 품절) — AS 통계와 완전히 분리된 화면
+   ========================================================= */
+let chartReasonPr, chartOrderable, chartStorePr, chartTypePr;
+function periodStart(selectId){
+  const v = document.getElementById(selectId).value;
+  if(v === 'all') return null;
+  const d = new Date();
+  d.setDate(d.getDate() - Number(v));
+  return d.toISOString();
+}
+async function refreshPrStats(){
+  if(!ME) return;
+  const storeFilter = document.getElementById('pr-stat-store-filter').value;
+  const typeFilter = document.getElementById('pr-stat-type-filter').value;
+  const since = periodStart('pr-stat-period');
+
+  let qp = sb.from('resv_product_requests').select('*');
+  if(storeFilter!=='all') qp = qp.eq('store_id', Number(storeFilter));
+  if(typeFilter!=='all') qp = qp.eq('request_type', typeFilter);
+  if(since) qp = qp.gte('created_at', since);
+  const { data: prData } = await qp;
+  const pr = prData || [];
+
+  /* --- 요약 카드 --- */
+  const totalInquiries = pr.length;
+  const approved = pr.filter(r=>['approved','arrived','contacted','purchased','abandoned'].includes(r.status)).length;
+  const rejected = pr.filter(r=>r.status==='rejected').length;
+  const purchased = pr.filter(r=>r.status==='purchased').length;
+  const convBase = pr.filter(r=>['arrived','contacted','purchased','abandoned'].includes(r.status)).length;
+  const convRate = convBase>0 ? Math.round(purchased/convBase*100) : 0;
+
+  document.getElementById('pr-stat-cards').innerHTML = `
+    <div class="stat-card"><div class="label">전체 문의</div><div class="value">${totalInquiries}건</div></div>
+    <div class="stat-card"><div class="label">발주가능 판정</div><div class="value">${approved}건</div></div>
+    <div class="stat-card"><div class="label">발주불가 판정</div><div class="value">${rejected}건</div></div>
+    <div class="stat-card"><div class="label">구매완료</div><div class="value">${purchased}건</div></div>
+    <div class="stat-card"><div class="label">입고 후 구매전환율</div><div class="value">${convRate}%</div><div class="sub">입고건 대비 구매완료 비율</div></div>
+  `;
+
+  /* --- 상품 Top 랭킹 (많이 찾는 순, 발주여부 무관) --- */
+  const counts = {};
+  pr.forEach(r=>{ const key = r.product_name.trim(); counts[key] = (counts[key]||0)+1; });
+  const ranked = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  document.getElementById('rank-product').innerHTML = ranked.length
+    ? ranked.map((r,i)=>`<li><span><span class="n">${i+1}</span>${r[0]}</span><b>${r[1]}건</b></li>`).join('')
+    : '<div class="empty">데이터 없음</div>';
+
+  /* --- 접수 사유 통계 --- */
+  const reasonCountsPr = {};
+  REASONS.product_request.forEach(ro=> reasonCountsPr[ro.label]=0 );
+  pr.forEach(r=>{ const label = reasonLabel('product_request', r.reason_id) || '미기재'; reasonCountsPr[label] = (reasonCountsPr[label]||0)+1; });
+  drawBarChart('chart-reason-product', Object.keys(reasonCountsPr), Object.values(reasonCountsPr), 'chartReasonPr');
+
+  /* --- 발주가능/불가 비율 --- */
+  drawPieChart('chart-orderable', ['발주가능','발주불가','검토중'], [approved, rejected, pr.filter(r=>r.status==='requested').length], 'chartOrderable');
+
+  /* --- 매장별 문의 건수 (전체 매장 기준 비교용 — 매장 필터와 무관하게 항상 전체 매장을 보여줌) --- */
+  let qAllStores = sb.from('resv_product_requests').select('*');
+  if(typeFilter!=='all') qAllStores = qAllStores.eq('request_type', typeFilter);
+  if(since) qAllStores = qAllStores.gte('created_at', since);
+  const { data: allStoreData } = await qAllStores;
+  const storeCounts = {};
+  STORES.forEach(s=> storeCounts[s.name]=0 );
+  (allStoreData||[]).forEach(r=>{ const name = storeName(r.store_id); storeCounts[name] = (storeCounts[name]||0)+1; });
+  drawBarChart('chart-store-product', Object.keys(storeCounts), Object.values(storeCounts), 'chartStorePr');
+
+  /* --- 미취급/품절 유형별 건수 --- */
+  const unstockedCount = pr.filter(r=>r.request_type==='unstocked').length;
+  const oosCount = pr.filter(r=>r.request_type==='out_of_stock').length;
+  drawBarChart('chart-type-product', ['미취급 상품','품절 상품'], [unstockedCount, oosCount], 'chartTypePr');
+}
+document.getElementById('pr-stat-store-filter').addEventListener('change', refreshPrStats);
+document.getElementById('pr-stat-type-filter').addEventListener('change', refreshPrStats);
+document.getElementById('pr-stat-period').addEventListener('change', refreshPrStats);
+
+/* =========================================================
+   AS 통계 — 예약 통계와 완전히 분리된 화면
+   ========================================================= */
+let chartReasonAs, chartAsResult, chartStoreAs;
+async function refreshAsStats(){
+  if(!ME) return;
+  const storeFilter = document.getElementById('as-stat-store-filter').value;
+  const since = periodStart('as-stat-period');
+
+  let qa = sb.from('resv_as_requests').select('*');
+  if(storeFilter!=='all') qa = qa.eq('store_id', Number(storeFilter));
+  if(since) qa = qa.gte('created_at', since);
+  const { data: asData } = await qa;
+  const as = asData || [];
+
+  /* --- 요약 카드 --- */
+  const total = as.length;
+  const processing = as.filter(r=>['received','processing'].includes(r.status)).length;
+  const ready = as.filter(r=>r.status==='ready').length;
+  const completed = as.filter(r=>r.status==='completed').length;
+  const freeRepairShare = completed>0 ? Math.round(as.filter(r=>r.result==='free_repair').length/completed*100) : 0;
+
+  document.getElementById('as-stat-cards').innerHTML = `
+    <div class="stat-card"><div class="label">전체 AS 접수</div><div class="value">${total}건</div></div>
+    <div class="stat-card"><div class="label">접수·처리중</div><div class="value">${processing}건</div></div>
+    <div class="stat-card"><div class="label">고객안내대기</div><div class="value">${ready}건</div></div>
+    <div class="stat-card"><div class="label">인계완료</div><div class="value">${completed}건</div></div>
+    <div class="stat-card"><div class="label">무상수리 비율</div><div class="value">${freeRepairShare}%</div><div class="sub">인계완료 건 기준</div></div>
+  `;
+
+  /* --- AS 접수 기기 Top 랭킹 --- */
+  const counts = {};
+  as.forEach(r=>{ const key = r.device_name.trim(); counts[key] = (counts[key]||0)+1; });
+  const ranked = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  document.getElementById('rank-as-device').innerHTML = ranked.length
+    ? ranked.map((r,i)=>`<li><span><span class="n">${i+1}</span>${r[0]}</span><b>${r[1]}건</b></li>`).join('')
+    : '<div class="empty">데이터 없음</div>';
+
+  /* --- 접수 사유(증상) 통계 --- */
+  const reasonCountsAs = {};
+  REASONS.as.forEach(ro=> reasonCountsAs[ro.label]=0 );
+  as.forEach(r=>{ const label = reasonLabel('as', r.reason_id) || '미기재'; reasonCountsAs[label] = (reasonCountsAs[label]||0)+1; });
+  drawBarChart('chart-reason-as', Object.keys(reasonCountsAs), Object.values(reasonCountsAs), 'chartReasonAs');
+
+  /* --- 처리 결과 비율 --- */
+  const resultLabels = ['무상수리','유상수리','교환','환불','처리불가'];
+  const resultKeys = ['free_repair','paid_repair','exchange','refund','unable'];
+  const resultCounts = resultKeys.map(k=> as.filter(r=>r.result===k).length);
+  drawPieChart('chart-as-result', resultLabels, resultCounts, 'chartAsResult', ['#FFC800','#1c7ed6','#2f9e44','#e5484d','#8a8a90']);
+
+  /* --- 매장별 AS 접수 건수 (전체 매장 기준 비교용) --- */
+  let qAllStores = sb.from('resv_as_requests').select('*');
+  if(since) qAllStores = qAllStores.gte('created_at', since);
+  const { data: allStoreData } = await qAllStores;
+  const storeCounts = {};
+  STORES.forEach(s=> storeCounts[s.name]=0 );
+  (allStoreData||[]).forEach(r=>{ const name = storeName(r.store_id); storeCounts[name] = (storeCounts[name]||0)+1; });
+  drawBarChart('chart-store-as', Object.keys(storeCounts), Object.values(storeCounts), 'chartStoreAs');
+}
+document.getElementById('as-stat-store-filter').addEventListener('change', refreshAsStats);
+document.getElementById('as-stat-period').addEventListener('change', refreshAsStats);
+
+/* --- 차트 공통 유틸 --- */
+function drawBarChart(canvasId, labels, values, varName){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(window[varName]) window[varName].destroy();
+  window[varName] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data: values, backgroundColor:'#FFC800', borderRadius:4 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true, ticks:{precision:0}} } }
+  });
+}
+function drawPieChart(canvasId, labels, values, varName, colors){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(window[varName]) window[varName].destroy();
+  window[varName] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data: values, backgroundColor: colors || ['#FFC800','#e5484d','#d0d0d5'] }] },
+    options:{ plugins:{legend:{position:'bottom'}} }
+  });
+}
+
+/* =========================================================
+   설정 (직원 / 사유 관리) — 실장/관리자 전용
+   ========================================================= */
+async function refreshSettings(){
+  const { data: staff } = await sb.from('resv_staff').select('id,name,role,store_id,active').order('name');
+  document.querySelector('#staff-table tbody').innerHTML = (staff||[]).map(s=>`
+    <tr>
+      <td>${s.name}</td>
+      <td>${s.role==='manager'?'실장':(s.role==='admin'?'관리자':'직원')}</td>
+      <td>${s.store_id? storeName(s.store_id) : '전매장'}</td>
+      <td>${s.active? '사용중':'비활성'}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="toggleStaff(${s.id}, ${!s.active})">${s.active?'비활성화':'활성화'}</button>
+          <button class="btn btn-sm btn-outline" onclick="resetPin(${s.id})">PIN 재설정</button></td>
+    </tr>`).join('');
+
+  renderReasonTable('reason-pr-table', REASONS.product_request, 'product_request');
+  renderReasonTable('reason-as-table', REASONS.as, 'as');
+}
+function renderReasonTable(tableId, list, type){
+  document.querySelector('#'+tableId+' tbody').innerHTML = list.map(r=>`
+    <tr><td>${r.label}</td><td>사용중</td>
+      <td><button class="btn btn-sm btn-outline" onclick="deactivateReason(${r.id})">비활성화</button></td>
+    </tr>`).join('');
+}
+document.getElementById('staff-add-btn').addEventListener('click', ()=>{
+  const storeOpts = STORES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  openModal(`
+    <h2>직원 추가</h2>
+    <label>이름</label><input id="f-name">
+    <label>PIN (4자리 숫자)</label><input id="f-pin" maxlength="4">
+    <label>권한</label>
+    <select id="f-role"><option value="staff">직원</option><option value="manager">실장</option><option value="admin">관리자</option></select>
+    <label>담당 매장 (비워두면 전매장)</label>
+    <select id="f-store"><option value="">전매장</option>${storeOpts}</select>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitNewStaff()">추가</button>
+    </div>
+  `);
+});
+async function submitNewStaff(){
+  const name = document.getElementById('f-name').value.trim();
+  const pin = document.getElementById('f-pin').value.trim();
+  if(!name || !/^\d{4}$/.test(pin)){ toast('이름과 4자리 PIN을 입력해주세요'); return; }
+  const payload = {
+    name, pin,
+    role: document.getElementById('f-role').value,
+    store_id: document.getElementById('f-store').value || null
+  };
+  const { error } = await sb.from('resv_staff').insert(payload);
+  if(error){ toast('추가 실패: '+error.message); return; }
+  closeModal(); toast('직원을 추가했습니다'); refreshSettings(); loadStaffOptions();
+}
+async function toggleStaff(id, activate){
+  const { error } = await sb.from('resv_staff').update({active: activate}).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('변경했습니다'); refreshSettings(); loadStaffOptions();
+}
+function resetPin(id){
+  openModal(`
+    <h2>PIN 재설정</h2>
+    <label>새 PIN (4자리 숫자)</label><input id="f-newpin" maxlength="4">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitResetPin(${id})">저장</button>
+    </div>
+  `);
+}
+async function submitResetPin(id){
+  const pin = document.getElementById('f-newpin').value.trim();
+  if(!/^\d{4}$/.test(pin)){ toast('4자리 숫자를 입력해주세요'); return; }
+  const { error } = await sb.from('resv_staff').update({pin}).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  closeModal(); toast('PIN을 재설정했습니다');
+}
+document.getElementById('reason-pr-add-btn').addEventListener('click', ()=> addReasonPrompt('product_request'));
+document.getElementById('reason-as-add-btn').addEventListener('click', ()=> addReasonPrompt('as'));
+function addReasonPrompt(type){
+  openModal(`
+    <h2>사유 추가</h2>
+    <label>사유 이름</label><input id="f-reason-label" placeholder="예: 타 매장에서 판매중">
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="submitNewReason('${type}')">추가</button>
+    </div>
+  `);
+}
+async function submitNewReason(type){
+  const label = document.getElementById('f-reason-label').value.trim();
+  if(!label){ toast('사유를 입력해주세요'); return; }
+  const { error } = await sb.from('resv_reason_options').insert({ type, label, sort_order: 99 });
+  if(error){ toast('추가 실패: '+error.message); return; }
+  closeModal(); toast('사유를 추가했습니다'); await loadReasons(); refreshSettings();
+}
+async function deactivateReason(id){
+  const { error } = await sb.from('resv_reason_options').update({active:false}).eq('id', id);
+  if(error){ toast('처리 실패: '+error.message); return; }
+  toast('비활성화했습니다'); await loadReasons(); refreshSettings();
+}
+
+/* ================= 초기화 ================= */
+buildKeypad();
+renderPinDots();
+loadStaffOptions();
+tryAutoLogin();
+</script>
+</body>
+</html>
