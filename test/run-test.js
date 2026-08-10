@@ -50,12 +50,16 @@ function serve(){
   await page.selectOption('#login-staff', { label: '신재현' });
   for(const d of ['0','0','0','0']) await page.click(`#keypad button[data-k="${d}"]`);
   await page.waitForTimeout(300);
-  assert(await page.isVisible('#home-grid'), '로그인 성공 후 매장 선택 홈 화면 표시');
-  const storeTileCount = await page.$$eval('.store-tile', els => els.length);
-  assert(storeTileCount === 2, `홈 화면에 매장 타일 2개 표시 (실제 ${storeTileCount})`);
+  assert(await page.isVisible('#home-grid'), '로그인 성공 후 통합 피드 홈 화면 표시');
+  assert(await page.isVisible('#home-feed-columns .home-feed-col-head.as'), '홈 화면에 AS 접수 컬럼 표시');
+  assert(await page.isVisible('#home-feed-columns .home-feed-col-head.pr'), '홈 화면에 상품 예약 컬럼 표시');
+  const storeChipCount = await page.$$eval('.home-chip.store', els => els.length);
+  assert(storeChipCount === 3, `홈 화면 매장 필터 칩 3개(전체 매장 + 매장 2곳) 표시 (실제 ${storeChipCount})`);
 
-  // ---- 매장 타일 클릭 → 그 매장 화면으로 진입 ----
-  await page.click('.store-tile');
+  // ---- 매장 칩 클릭(필터) → "매장 화면 바로 열기" 버튼으로 그 매장 화면 진입 ----
+  await page.click('.home-chip.store[data-store="2"]');
+  await page.waitForTimeout(150);
+  await page.click('#home-enter-store-row .enter-store-btn');
   await page.waitForTimeout(300);
   assert(await page.isVisible('#app'), '매장 선택 후 앱 화면 표시');
   assert(!(await page.isVisible('#home-grid')), '매장 선택 후 홈 화면은 숨겨짐');
@@ -247,9 +251,27 @@ function serve(){
   assert(await page.isVisible('#home-grid'), '"매장 변경" 클릭 시 홈 화면으로 복귀');
   assert(!(await page.isVisible('#app')), '"매장 변경" 클릭 시 앱 화면은 숨겨짐');
   // 다른 매장으로 다시 들어가서 이후 흐름에 지장 없는지 확인
-  await page.click('.store-tile');
+  await page.click('.home-chip.store[data-store="1"]');
+  await page.waitForTimeout(150);
+  await page.click('#home-enter-store-row .enter-store-btn');
   await page.waitForTimeout(250);
   assert(await page.isVisible('#app'), '다른 매장 재선택 후 앱 화면 정상 표시');
+
+  // ================= 홈 피드 항목 클릭 → 그 매장의 AS 상세로 바로 진입 확인 =================
+  await page.click('#view-as .change-store-btn');
+  await page.waitForTimeout(250);
+  await page.click('.home-chip.store[data-store="all"]'); // 매장 필터를 전체로 되돌려서 앞서 등록한 항목이 다시 보이게 함
+  await page.waitForTimeout(150);
+  const homeFeedAsHtml = await page.textContent('#home-feed-columns');
+  assert(homeFeedAsHtml.includes('타사 브랜드 X 기기') && homeFeedAsHtml.includes('박고객'), '홈 피드에 처리중인 AS 항목(타사 브랜드 X 기기) 표시');
+  await page.click('.home-feed-item.as:has-text("박고객")');
+  await page.waitForTimeout(300);
+  assert(await page.isVisible('#view-as.active'), '홈 피드 AS 항목 클릭 시 AS 접수 화면으로 이동');
+  assert(!(await page.isVisible('#home-grid')), '홈 피드 항목 클릭 시 홈 화면은 숨겨짐');
+  const jumpedDetail = await page.textContent('#as-detail');
+  assert(jumpedDetail.includes('박고객'), '홈 피드에서 클릭한 항목의 상세가 바로 열림');
+  const jumpedStoreLabel = await page.textContent('#as-current-store-name');
+  assert(jumpedStoreLabel.trim().length > 0, '홈 피드 클릭 진입 시 현재 매장 표시 바에 매장명 노출');
 
   console.log('\n--- console/page errors captured ---');
   errors.forEach(e => console.log(e));

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홈 개편 시안 1 — 통합 피드 (매장 안 골라도 전체가 한 화면)</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --black:#111111; --white:#ffffff;
+    --bg:#F6F6F4; --border:#eceae4; --gray:#8a8a90; --red:#e5484d; --green:#2f9e58;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;}
+  .concept-badge{position:fixed;top:14px;left:14px;background:var(--black);color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;z-index:100;letter-spacing:.3px;}
+  .concept-sub{position:fixed;top:14px;left:150px;background:#fff;color:#555;font-size:11px;font-weight:600;padding:6px 12px;border-radius:20px;z-index:100;border:1px solid var(--border);}
+
+  #home{max-width:900px;margin:0 auto;padding:60px 24px 100px;}
+  .home-head{margin-bottom:20px;}
+  .home-head .greet{font-size:13px;color:var(--gray);font-weight:600;}
+  .home-head h1{font-size:26px;font-weight:800;margin:6px 0 4px;letter-spacing:-.5px;}
+  .home-head p{font-size:13px;color:var(--gray);margin:0;}
+
+  .summary-row{display:flex;gap:12px;margin:22px 0;}
+  .sum-card{flex:1;background:var(--white);border-radius:18px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .sum-card .n{font-size:26px;font-weight:800;letter-spacing:-.5px;}
+  .sum-card.warn .n{color:var(--red);}
+  .sum-card .l{font-size:11.5px;color:var(--gray);font-weight:700;margin-top:4px;}
+
+  .filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:24px 0 16px;position:sticky;top:0;background:rgba(246,246,244,.9);backdrop-filter:blur(10px);padding:10px 0;z-index:5;}
+  .chip{border:1.5px solid var(--border);background:var(--white);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:700;color:#555;cursor:pointer;white-space:nowrap;}
+  .chip.active{background:var(--black);color:#fff;border-color:var(--black);}
+  .chip.store.active{background:var(--yellow);color:#3a2c00;border-color:var(--yellow-dark);}
+  .sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
+  .store-scroll{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:2px;}
+
+  .feed-item{background:var(--white);border-radius:16px;padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:transform .12s;}
+  .feed-item:hover{transform:translateY(-2px);}
+  .feed-item .badge-type{font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:8px;flex-shrink:0;}
+  .badge-type.as{background:#fdeaea;color:var(--red);}
+  .badge-type.pr{background:#eef6ff;color:#2f6fe5;}
+  .feed-item .store-tag{font-size:11px;font-weight:800;color:#5c4600;background:#fff3cc;padding:3px 9px;border-radius:20px;flex-shrink:0;}
+  .feed-item .body{flex:1;min-width:0;}
+  .feed-item .title{font-weight:700;font-size:14px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .feed-item .meta{font-size:11.5px;color:var(--gray);}
+  .feed-item .right{text-align:right;flex-shrink:0;}
+  .feed-item .status-pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;background:#f0f0ee;color:#555;display:inline-block;}
+  .status-pill.overdue{background:#fdeaea;color:var(--red);}
+  .feed-item .days{font-size:10.5px;color:var(--gray);margin-top:4px;}
+
+  .day-divider{font-size:11.5px;font-weight:800;color:var(--gray);margin:22px 0 10px;text-transform:uppercase;letter-spacing:.4px;}
+  .empty{text-align:center;color:var(--gray);font-size:13px;padding:40px 0;}
+</style>
+</head>
+<body>
+<div class="concept-badge">홈 개편 시안 1</div>
+<div class="concept-sub">통합 피드 — 매장 선택 없이 전체를 하나의 목록으로</div>
+
+<div id="home">
+  <div class="home-head">
+    <div class="greet">2026년 8월 10일 · 신재현 님</div>
+    <h1>오늘 처리할 일</h1>
+    <p>매장을 고를 필요 없이, 전 매장의 AS·예약이 시간순으로 한 화면에 모여있어요. 필요하면 위 필터로 매장/유형만 좁혀보세요.</p>
+  </div>
+
+  <div class="summary-row">
+    <div class="sum-card warn"><div class="n" id="sum-as">--</div><div class="l">AS 처리중</div></div>
+    <div class="sum-card warn"><div class="n" id="sum-overdue">--</div><div class="l">3일 이상 지연</div></div>
+    <div class="sum-card"><div class="n" id="sum-pr">--</div><div class="l">예약 대기</div></div>
+    <div class="sum-card"><div class="n">10</div><div class="l">전체 매장</div></div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="chip active" data-type="all" onclick="setType('all')">전체</div>
+    <div class="chip" data-type="as" onclick="setType('as')">AS 접수</div>
+    <div class="chip" data-type="pr" onclick="setType('pr')">상품 예약</div>
+    <div class="sep"></div>
+    <div class="store-scroll" id="store-chips"></div>
+  </div>
+
+  <div id="feed-list"></div>
+</div>
+
+<script>
+const STORES = ['구월로데오','연수','인천공항','논현','구월길병원','계산','부천상동','부천중동','을지로','검단'];
+const AS_PRODUCTS = ['그래피티C · 배터리[블랙]','롤리팟-J · 블루','그래피티3 · 핑크','릴렉스 에이스','쥴 브리즈 민트'];
+const PR_PRODUCTS = ['RELX 파이 맥스 머스캣','쥴 브리즈 민트','그래피티C 신제품','로켓 프로 2세대'];
+const CUSTOMERS = ['김고객','이고객','박고객','최고객','정고객','한고객','오고객'];
+const AS_STATUS = ['접수완료','로데오점 접수확인','제조사 발송·검사중','재입고완료'];
+
+function seedRandom(seed){ let s = seed; return () => { s = (s*9301+49297)%233280; return s/233280; }; }
+const rnd = seedRandom(42);
+function pick(arr){ return arr[Math.floor(rnd()*arr.length)]; }
+
+let ITEMS = [];
+let id=1;
+STORES.forEach((store,si)=>{
+  const asCount = Math.floor(rnd()*5);
+  for(let i=0;i<asCount;i++){
+    const days = Math.floor(rnd()*8);
+    ITEMS.push({id:id++, type:'as', store, title:pick(AS_PRODUCTS), customer:pick(CUSTOMERS), status:pick(AS_STATUS), days, overdue: days>=4});
+  }
+  const prCount = Math.floor(rnd()*3);
+  for(let i=0;i<prCount;i++){
+    const days = Math.floor(rnd()*5);
+    ITEMS.push({id:id++, type:'pr', store, title:pick(PR_PRODUCTS), customer:pick(CUSTOMERS), status:'입고 대기', days, overdue:false});
+  }
+});
+ITEMS.sort((a,b)=> b.days - a.days);
+
+let filterType = 'all';
+let filterStore = 'all';
+
+function renderChips(){
+  const wrap = document.getElementById('store-chips');
+  wrap.innerHTML = `<div class="chip store active" data-store="all" onclick="setStore('all')">전체 매장</div>` +
+    STORES.map(s=>`<div class="chip store" data-store="${s}" onclick="setStore('${s}')">${s}</div>`).join('');
+}
+function setType(t){ filterType=t; document.querySelectorAll('.chip[data-type]').forEach(c=>c.classList.toggle('active', c.dataset.type===t)); render(); }
+function setStore(s){ filterStore=s; document.querySelectorAll('.chip[data-store]').forEach(c=>c.classList.toggle('active', c.dataset.store===s)); render(); }
+
+function render(){
+  const filtered = ITEMS.filter(it => (filterType==='all'||it.type===filterType) && (filterStore==='all'||it.store===filterStore));
+  document.getElementById('sum-as').textContent = ITEMS.filter(i=>i.type==='as').length;
+  document.getElementById('sum-overdue').textContent = ITEMS.filter(i=>i.overdue).length;
+  document.getElementById('sum-pr').textContent = ITEMS.filter(i=>i.type==='pr').length;
+
+  const list = document.getElementById('feed-list');
+  if(!filtered.length){ list.innerHTML = '<div class="empty">조건에 맞는 항목이 없습니다</div>'; return; }
+  list.innerHTML = filtered.map(it=>`
+    <div class="feed-item">
+      <span class="badge-type ${it.type}">${it.type==='as'?'AS':'예약'}</span>
+      <span class="store-tag">${it.store}</span>
+      <div class="body">
+        <div class="title">${it.title}</div>
+        <div class="meta">${it.customer} · ${it.status}</div>
+      </div>
+      <div class="right">
+        <span class="status-pill ${it.overdue?'overdue':''}">${it.days===0?'오늘':it.days+'일째'}</span>
+      </div>
+    </div>`).join('');
+}
+renderChips();
+render();
+</script>
+</body>
+</html>

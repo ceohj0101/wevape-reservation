@@ -227,22 +227,56 @@
   .home-topbar .brand{font-size:13.5px;font-weight:800;}
   .home-topbar .brand .dot{display:inline-block;width:7px;height:7px;background:var(--yellow);border-radius:50%;margin-right:6px;}
   .home-topbar button{border:none;background:none;color:var(--gray);font-size:12.5px;font-weight:700;cursor:pointer;}
-  .home-head{text-align:center;margin-bottom:40px;}
+  .home-head{margin-bottom:22px;}
   .home-head .greet{font-size:13.5px;color:var(--gray);font-weight:600;margin-bottom:6px;}
   .home-head h1{font-size:27px;font-weight:800;margin:0;letter-spacing:-.4px;}
-  .home-head p{color:var(--gray);font-size:13px;margin-top:10px;}
-  .store-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px;}
-  .store-tile{background:var(--white);border-radius:20px;padding:20px 18px;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 1px 3px rgba(0,0,0,.04);position:relative;}
-  .store-tile:hover{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.08);}
-  .store-tile.mine{background:linear-gradient(155deg,#fff8de,#fff);border:1.5px solid var(--yellow-dark);}
-  .store-tile .tile-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;min-height:18px;}
-  .store-tile .tag-mine{font-size:10px;font-weight:800;color:var(--yellow-dark);background:#fff3cc;padding:3px 8px;border-radius:20px;}
-  .store-tile .warn-dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(229,72,77,.15);}
-  .store-tile h3{font-size:16px;font-weight:800;margin:0 0 12px;letter-spacing:-.2px;}
-  .store-tile .tile-stats{display:flex;gap:12px;}
-  .store-tile .tile-stats .stat .n{font-size:21px;font-weight:800;line-height:1;}
-  .store-tile .tile-stats .stat.warn .n{color:var(--red);}
-  .store-tile .tile-stats .stat .l{font-size:10.5px;color:var(--gray);font-weight:600;margin-top:4px;}
+  .home-head p{color:var(--gray);font-size:13px;margin-top:10px;max-width:640px;}
+
+  /* ---------- 홈 통합 피드 — 매장을 고르지 않고 전 매장의 처리할 일을 한 화면에서 확인 ---------- */
+  .home-wrap{max-width:900px;}
+  .home-summary-row{display:flex;gap:12px;margin:22px 0;flex-wrap:wrap;}
+  .home-sum-card{flex:1;min-width:120px;background:var(--white);border-radius:18px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .home-sum-card .n{font-size:26px;font-weight:800;letter-spacing:-.5px;}
+  .home-sum-card.warn .n{color:var(--red);}
+  .home-sum-card .l{font-size:11.5px;color:var(--gray);font-weight:700;margin-top:4px;}
+
+  .home-filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:22px 0 14px;position:sticky;top:0;background:rgba(246,246,244,.92);backdrop-filter:blur(10px);padding:10px 0;z-index:5;}
+  .home-chip{border:1.5px solid var(--border);background:var(--white);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:700;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .home-chip.active{background:var(--black);color:#fff;border-color:var(--black);}
+  .home-chip.store.active{background:var(--yellow);color:#3a2c00;border-color:var(--yellow-dark);}
+  .home-filter-sep{width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;}
+  .home-store-scroll{display:flex;gap:8px;overflow-x:auto;flex:1;padding-bottom:2px;}
+
+  .home-enter-store-row{margin-bottom:14px;}
+  .home-enter-store-row .enter-store-btn{border:1.5px solid var(--yellow-dark);background:#fffbe8;color:#5c4600;font-weight:800;font-size:12.5px;padding:9px 16px;border-radius:20px;cursor:pointer;}
+  .home-enter-store-row .enter-store-btn:hover{background:var(--yellow);}
+
+  /* AS와 예약을 한눈에 구분할 수 있도록 좌우 2개 컬럼으로 나눠서 보여줍니다 —
+     전체 필터일 때는 두 컬럼이 나란히, 한쪽 유형만 필터하면 그 컬럼만 넓게 보입니다. */
+  .home-feed-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+  .home-feed-columns.single{grid-template-columns:1fr;}
+  .home-feed-col-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--border);}
+  .home-feed-col-head .col-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .home-feed-col-head.as .col-dot{background:var(--red);}
+  .home-feed-col-head.pr .col-dot{background:#2f6fe5;}
+  .home-feed-col-head h2{font-size:15.5px;font-weight:800;margin:0;letter-spacing:-.2px;}
+  .home-feed-col-head .col-count{font-size:12px;font-weight:800;color:var(--gray);background:var(--white);padding:2px 9px;border-radius:20px;margin-left:auto;}
+  .home-feed-col-head.as .col-count.warn{color:var(--red);background:#fdeaea;}
+
+  .home-feed-item{background:var(--white);border-radius:16px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:transform .12s;border-left:3px solid transparent;}
+  .home-feed-item:hover{transform:translateY(-2px);}
+  .home-feed-item.as{border-left-color:var(--red);}
+  .home-feed-item.pr{border-left-color:#2f6fe5;}
+  .home-feed-item .store-tag{font-size:11px;font-weight:800;color:#5c4600;background:#fff3cc;padding:3px 9px;border-radius:20px;flex-shrink:0;white-space:nowrap;}
+  .home-feed-item .store-tag.mine{background:var(--yellow);}
+  .home-feed-item .fbody{flex:1;min-width:0;}
+  .home-feed-item .ftitle{font-weight:700;font-size:13.5px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .home-feed-item .fmeta{font-size:11.5px;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .home-feed-item .fright{text-align:right;flex-shrink:0;}
+  .home-feed-item .fstatus-pill{font-size:11px;font-weight:700;padding:5px 11px;border-radius:20px;background:#f0f0ee;color:#555;display:inline-block;white-space:nowrap;}
+  .home-feed-item .fstatus-pill.overdue{background:#fdeaea;color:var(--red);}
+  .home-empty{text-align:center;color:var(--gray);font-size:13px;padding:30px 0;background:var(--white);border-radius:16px;}
+  @media (max-width:860px){ .home-feed-columns{grid-template-columns:1fr;} }
 
   /* ---------- AS 등록 모달 — 매장 선택 강조 ---------- */
   .store-select-box{background:#fffbe8;border:1.5px solid var(--yellow-dark);border-radius:10px;padding:11px 13px;margin-bottom:2px;}
@@ -278,7 +312,7 @@
   </div>
 </div>
 
-<!-- ================= 홈 (매장 런처) — 로그인 직후 매장을 골라 바로 들어갑니다 ================= -->
+<!-- ================= 홈 (통합 피드) — 매장을 고르지 않아도 전 매장의 처리할 일이 한 화면에 모입니다 ================= -->
 <div id="home-grid">
   <div class="home-wrap">
     <div class="home-topbar">
@@ -287,10 +321,19 @@
     </div>
     <div class="home-head">
       <div class="greet" id="home-greet"></div>
-      <h1>오늘 어느 매장을 확인할까요?</h1>
-      <p>매장을 선택하면 그 매장의 예약·AS 화면으로 바로 들어갑니다. 다른 매장은 언제든 "매장 변경"으로 바꿀 수 있어요.</p>
+      <h1>오늘 처리할 일</h1>
+      <p>매장을 고르지 않아도 전 매장의 AS·예약이 여기 한 화면에 모여있어요. 필요하면 아래 필터로 매장이나 유형만 좁혀보고, 항목을 누르면 그 매장 화면으로 바로 들어가서 처리할 수 있습니다.</p>
     </div>
-    <div class="store-tile-grid" id="store-tile-grid"></div>
+    <div class="home-summary-row" id="home-summary-row"></div>
+    <div class="home-filter-bar">
+      <div class="home-chip active" data-type="all" onclick="setHomeTypeFilter('all')">전체</div>
+      <div class="home-chip" data-type="as" onclick="setHomeTypeFilter('as')">AS 접수</div>
+      <div class="home-chip" data-type="pr" onclick="setHomeTypeFilter('pr')">상품 예약</div>
+      <div class="home-filter-sep"></div>
+      <div class="home-store-scroll" id="home-store-chips"></div>
+    </div>
+    <div id="home-enter-store-row"></div>
+    <div class="home-feed-columns" id="home-feed-columns"></div>
   </div>
 </div>
 
@@ -763,7 +806,13 @@ async function enterApp(){
   }
 }
 
-/* ================= 홈 (매장 런처) ================= */
+/* ================= 홈 (통합 피드) =================
+   매장을 먼저 고르지 않고, 전 매장의 AS·예약 중 아직 처리 안 된 건을 한 목록에 모아서 보여줍니다.
+   항목을 클릭하면 그 매장으로 들어가서(enterStore) 해당 화면·항목까지 바로 열어줍니다(goFromHome). */
+let HOME_FEED_ITEMS = [];
+let HOME_TYPE_FILTER = 'all';
+let HOME_STORE_FILTER = 'all';
+
 async function showHomeGrid(){
   document.getElementById('app').style.display='none';
   document.getElementById('home-grid').style.display='block';
@@ -771,44 +820,135 @@ async function showHomeGrid(){
   await refreshHomeGrid();
 }
 async function refreshHomeGrid(){
-  const wrap = document.getElementById('store-tile-grid');
-  if(!wrap || !STORES.length) return;
+  if(!STORES.length) return;
   const [{ data: asData, error: asErr }, { data: prData, error: prErr }] = await Promise.all([
-    sb.from('resv_as_requests').select('store_id, status, received_date, created_at'),
-    sb.from('resv_product_requests').select('store_id, status'),
+    sb.from('resv_as_requests').select('id, store_id, status, category, received_date, created_at, product_family, product_type, product_option, device_name, customer_name'),
+    sb.from('resv_product_requests').select('id, store_id, status, product_name, customer_name, created_at'),
   ]);
   if(asErr) console.error(asErr);
   if(prErr) console.error(prErr);
-  const counts = {};
-  STORES.forEach(s=> counts[s.id] = { asPending:0, asOverdueDays:0, prPending:0 });
+
+  const items = [];
   (asData||[]).forEach(r=>{
-    const c = counts[r.store_id]; if(!c) return;
-    if(!isAsDone(r)){
-      c.asPending++;
-      const d = daysSince(r.received_date || r.created_at);
-      if(d > c.asOverdueDays) c.asOverdueDays = d;
-    }
+    if(isAsDone(r)) return;
+    const days = daysSince(r.received_date || r.created_at);
+    items.push({
+      id: r.id, type:'as', store_id: r.store_id,
+      title: asProductLabel(r), customer: r.customer_name || '-',
+      statusLabel: ALL_STATUS_LABELS_AS[r.status] || r.status,
+      days, overdue: days>=3
+    });
   });
   (prData||[]).forEach(r=>{
-    const c = counts[r.store_id]; if(!c) return;
-    if(r.status!=='purchased' && r.status!=='rejected' && r.status!=='abandoned') c.prPending++;
+    if(r.status==='purchased' || r.status==='rejected' || r.status==='abandoned') return;
+    const days = daysSince(r.created_at);
+    items.push({
+      id: r.id, type:'pr', store_id: r.store_id,
+      title: r.product_name || '-', customer: r.customer_name || '-',
+      statusLabel: PR_STATUS_LABELS_HOME[r.status] || r.status,
+      days, overdue: false
+    });
   });
-  wrap.innerHTML = STORES.map(s=>{
-    const c = counts[s.id];
-    const overdue = c.asPending>0 && c.asOverdueDays>=3;
-    const mine = ME.store_id && String(ME.store_id)===String(s.id);
-    return `<div class="store-tile ${mine?'mine':''}" onclick="enterStore(${s.id})">
-      <div class="tile-top">
-        ${mine?'<span class="tag-mine">내 매장</span>':'<span></span>'}
-        ${overdue?'<span class="warn-dot" title="최대 '+c.asOverdueDays+'일째 미처리"></span>':''}
-      </div>
-      <h3>${esc(s.name)}</h3>
-      <div class="tile-stats">
-        <div class="stat ${overdue?'warn':''}"><div class="n">${c.asPending}</div><div class="l">AS 처리중</div></div>
-        <div class="stat"><div class="n">${c.prPending}</div><div class="l">예약 대기</div></div>
-      </div>
+  items.sort((a,b)=> (b.overdue - a.overdue) || (b.days - a.days));
+  HOME_FEED_ITEMS = items;
+  renderHomeStoreChips();
+  renderHomeFeed();
+}
+const PR_STATUS_LABELS_HOME = {
+  requested:'문의접수(검토대기)', approved:'발주가능', arrived:'입고완료', contacted:'연락완료'
+};
+function renderHomeStoreChips(){
+  const wrap = document.getElementById('home-store-chips');
+  if(!wrap) return;
+  wrap.innerHTML = `<div class="home-chip store active" data-store="all" onclick="setHomeStoreFilter('all')">전체 매장</div>` +
+    STORES.map(s=>`<div class="home-chip store" data-store="${s.id}" onclick="setHomeStoreFilter('${s.id}')">${esc(s.name)}</div>`).join('');
+}
+function setHomeTypeFilter(t){
+  HOME_TYPE_FILTER = t;
+  document.querySelectorAll('#home-grid .home-chip[data-type]').forEach(c=>c.classList.toggle('active', c.dataset.type===t));
+  renderHomeFeed();
+}
+function setHomeStoreFilter(s){
+  HOME_STORE_FILTER = s;
+  document.querySelectorAll('#home-grid .home-chip[data-store]').forEach(c=>c.classList.toggle('active', c.dataset.store===s));
+  renderHomeFeed();
+}
+function homeFeedItemHtml(it){
+  const mine = ME.store_id && String(ME.store_id)===String(it.store_id);
+  return `<div class="home-feed-item ${it.type}" onclick="goFromHome('${it.type}', ${it.store_id}, ${it.id})">
+    <span class="store-tag ${mine?'mine':''}">${esc(storeName(it.store_id))}</span>
+    <div class="fbody">
+      <div class="ftitle">${esc(it.title)}</div>
+      <div class="fmeta">${esc(it.customer)} · ${esc(it.statusLabel)}</div>
+    </div>
+    <div class="fright">
+      <span class="fstatus-pill ${it.overdue?'overdue':''}">${it.type==='as' ? (it.days===0?'오늘':it.days+'일째') : '대기중'}</span>
+    </div>
+  </div>`;
+}
+function renderHomeFeed(){
+  const asAll = HOME_FEED_ITEMS.filter(i=>i.type==='as');
+  const prAll = HOME_FEED_ITEMS.filter(i=>i.type==='pr');
+  const overdueCount = asAll.filter(i=>i.overdue).length;
+  document.getElementById('home-summary-row').innerHTML = `
+    <div class="home-sum-card ${overdueCount?'warn':''}"><div class="n">${asAll.length}</div><div class="l">AS 처리중</div></div>
+    <div class="home-sum-card ${overdueCount?'warn':''}"><div class="n">${overdueCount}</div><div class="l">3일 이상 지연</div></div>
+    <div class="home-sum-card"><div class="n">${prAll.length}</div><div class="l">예약 대기</div></div>
+    <div class="home-sum-card"><div class="n">${STORES.length}</div><div class="l">전체 매장</div></div>
+  `;
+
+  // 매장 필터가 걸려있으면, 그 매장에 처리할 항목이 하나도 없어도 화면을 바로 열 수 있게 버튼을 보여줍니다.
+  const enterRow = document.getElementById('home-enter-store-row');
+  if(HOME_STORE_FILTER !== 'all'){
+    enterRow.innerHTML = `<button class="enter-store-btn" onclick="enterStore(${Number(HOME_STORE_FILTER)})">${esc(storeName(HOME_STORE_FILTER))} 매장 화면 바로 열기 →</button>`;
+  } else {
+    enterRow.innerHTML = '';
+  }
+
+  const byStore = it => (HOME_STORE_FILTER==='all' || String(it.store_id)===String(HOME_STORE_FILTER));
+  const asItems = asAll.filter(byStore);
+  const prItems = prAll.filter(byStore);
+
+  const showAs = HOME_TYPE_FILTER==='all' || HOME_TYPE_FILTER==='as';
+  const showPr = HOME_TYPE_FILTER==='all' || HOME_TYPE_FILTER==='pr';
+
+  const asColHtml = `
+    <div class="home-feed-col">
+      <div class="home-feed-col-head as"><span class="col-dot"></span><h2>AS 접수</h2><span class="col-count ${overdueCount?'warn':''}">${asItems.length}건</span></div>
+      ${asItems.length ? asItems.map(homeFeedItemHtml).join('') : '<div class="home-empty">처리할 AS가 없습니다</div>'}
     </div>`;
-  }).join('');
+  const prColHtml = `
+    <div class="home-feed-col">
+      <div class="home-feed-col-head pr"><span class="col-dot"></span><h2>상품 예약</h2><span class="col-count">${prItems.length}건</span></div>
+      ${prItems.length ? prItems.map(homeFeedItemHtml).join('') : '<div class="home-empty">대기중인 예약이 없습니다</div>'}
+    </div>`;
+
+  const wrap = document.getElementById('home-feed-columns');
+  wrap.classList.toggle('single', !(showAs && showPr));
+  wrap.innerHTML = (showAs?asColHtml:'') + (showPr?prColHtml:'');
+}
+/* 피드에서 항목을 클릭하면 그 매장으로 들어가서, 해당 화면(AS/예약)으로 전환하고
+   필터를 모두 초기화한 뒤 그 항목을 목록에서 바로 선택해서 상세를 보여줍니다. */
+async function goFromHome(type, storeId, itemId){
+  enterStore(storeId);
+  const tabBtn = document.querySelector(`.sidebar nav button[data-tab="${type==='as' ? 'as' : 'product'}"]`);
+  if(tabBtn) tabBtn.click();
+  if(type==='as'){
+    AS_CATEGORY_FILTER = 'all';
+    document.querySelectorAll('#as-category-tabs button').forEach(x=>x.classList.toggle('active', x.dataset.cat==='all'));
+    document.getElementById('as-status-filter').value = 'all';
+    document.getElementById('as-q-filter').value = '';
+    await refreshAsList();
+    selectAsItem(itemId);
+    if(isMobileWidth()) document.getElementById('as-md-root').classList.add('show-detail');
+  } else {
+    PR_TYPE_FILTER = 'all';
+    document.querySelectorAll('#pr-type-tabs button').forEach(x=>x.classList.toggle('active', x.dataset.type==='all'));
+    document.getElementById('pr-status-filter').value = 'all';
+    await refreshProductList();
+    selectProductItem(itemId);
+    if(isMobileWidth()) document.getElementById('pr-md-root').classList.add('show-detail');
+  }
 }
 function enterStore(id){
   CURRENT_STORE_ID = id;

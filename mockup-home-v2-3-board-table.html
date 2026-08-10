@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홈 개편 시안 3 — 관제 보드 (표 형태로 전 매장 밀도있게)</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --black:#111111; --white:#ffffff;
+    --bg:#F6F6F4; --border:#eceae4; --gray:#8a8a90; --red:#e5484d; --green:#2f9e58;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;}
+  .concept-badge{position:fixed;top:14px;left:14px;background:var(--black);color:#fff;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;z-index:100;letter-spacing:.3px;}
+  .concept-sub{position:fixed;top:14px;left:150px;background:#fff;color:#555;font-size:11px;font-weight:600;padding:6px 12px;border-radius:20px;z-index:100;border:1px solid var(--border);}
+
+  #home{max-width:1080px;margin:0 auto;padding:60px 24px 100px;}
+  .home-head{margin-bottom:18px;}
+  .home-head .greet{font-size:13px;color:var(--gray);font-weight:600;}
+  .home-head h1{font-size:26px;font-weight:800;margin:6px 0 4px;letter-spacing:-.5px;}
+  .home-head p{font-size:13px;color:var(--gray);margin:0;}
+
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .chip{border:1.5px solid var(--border);background:var(--white);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:700;color:#555;cursor:pointer;}
+  .chip.active{background:var(--black);color:#fff;border-color:var(--black);}
+  .search{border:1.5px solid var(--border);background:var(--white);border-radius:20px;padding:7px 14px;font-size:12.5px;flex:1;max-width:220px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--white);border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  thead th{text-align:left;font-size:11px;font-weight:800;color:var(--gray);text-transform:uppercase;letter-spacing:.3px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+  thead th:hover{color:var(--black);}
+  thead th .arrow{font-size:9px;margin-left:3px;opacity:.5;}
+  tbody td{padding:13px 16px;font-size:13px;border-bottom:1px solid var(--border);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#fafaf8;cursor:pointer;}
+  .store-cell{font-weight:800;}
+  .store-cell .mine-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--yellow-dark);margin-right:6px;}
+  .type-pill{font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;}
+  .type-pill.as{background:#fdeaea;color:var(--red);}
+  .type-pill.pr{background:#eef6ff;color:#2f6fe5;}
+  .cust{color:var(--gray);}
+  .days-pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:#f0f0ee;color:#555;}
+  .days-pill.overdue{background:#fdeaea;color:var(--red);}
+  tfoot td{padding:10px 16px;font-size:11.5px;color:var(--gray);}
+</style>
+</head>
+<body>
+<div class="concept-badge">홈 개편 시안 3</div>
+<div class="concept-sub">관제 보드 — 표 하나로 전 매장을 정렬·검색하며 파악</div>
+
+<div id="home">
+  <div class="home-head">
+    <div class="greet">2026년 8월 10일 · 신재현 님</div>
+    <h1>전체 현황판</h1>
+    <p>매장을 고르는 단계 없이, 표 하나에 전 매장의 AS·예약이 다 들어있어요. 열 제목을 누르면 정렬, 칩으로 빠르게 좁힐 수 있습니다.</p>
+  </div>
+
+  <div class="toolbar">
+    <div class="chip active" data-f="all" onclick="setFilter('all')">전체</div>
+    <div class="chip" data-f="as" onclick="setFilter('as')">AS만</div>
+    <div class="chip" data-f="pr" onclick="setFilter('pr')">예약만</div>
+    <div class="chip" data-f="overdue" onclick="setFilter('overdue')">지연만</div>
+    <input class="search" id="search" placeholder="매장/고객/상품 검색" oninput="render()">
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th onclick="sortBy('store')">매장 <span class="arrow">↕</span></th>
+        <th onclick="sortBy('type')">유형 <span class="arrow">↕</span></th>
+        <th onclick="sortBy('title')">상품 <span class="arrow">↕</span></th>
+        <th onclick="sortBy('customer')">고객</th>
+        <th onclick="sortBy('status')">상태</th>
+        <th onclick="sortBy('days')">경과 <span class="arrow">↕</span></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="empty-msg" style="display:none;text-align:center;color:#8a8a90;font-size:13px;padding:30px 0;">조건에 맞는 항목이 없습니다</div>
+</div>
+
+<script>
+const STORES = ['구월로데오','연수','인천공항','논현','구월길병원','계산','부천상동','부천중동','을지로','검단'];
+const MY_STORE = '구월로데오';
+const AS_PRODUCTS = ['그래피티C · 배터리[블랙]','롤리팟-J · 블루','그래피티3 · 핑크','릴렉스 에이스','쥴 브리즈 민트'];
+const PR_PRODUCTS = ['RELX 파이 맥스 머스캣','쥴 브리즈 민트','그래피티C 신제품','로켓 프로 2세대'];
+const CUSTOMERS = ['김고객','이고객','박고객','최고객','정고객','한고객'];
+const AS_STATUS = ['접수완료','로데오점 접수확인','제조사 발송·검사중','재입고완료'];
+
+function seedRandom(seed){ let s = seed; return () => { s = (s*9301+49297)%233280; return s/233280; }; }
+const rnd = seedRandom(19);
+function pick(arr){ return arr[Math.floor(rnd()*arr.length)]; }
+
+let ITEMS = [];
+let id=1;
+STORES.forEach(store=>{
+  const asCount = Math.floor(rnd()*5);
+  for(let i=0;i<asCount;i++){
+    const days = Math.floor(rnd()*8);
+    ITEMS.push({id:id++, store, type:'as', title:pick(AS_PRODUCTS), customer:pick(CUSTOMERS), status:pick(AS_STATUS), days, overdue: days>=4});
+  }
+  const prCount = Math.floor(rnd()*3);
+  for(let i=0;i<prCount;i++){
+    ITEMS.push({id:id++, store, type:'pr', title:pick(PR_PRODUCTS), customer:pick(CUSTOMERS), status:'입고 대기', days:Math.floor(rnd()*4), overdue:false});
+  }
+});
+
+let filter='all', sortKey='days', sortDir=-1;
+function setFilter(f){ filter=f; document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.toggle('active', c.dataset.f===f)); render(); }
+function sortBy(key){ if(sortKey===key) sortDir*=-1; else {sortKey=key; sortDir=1;} render(); }
+
+function render(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  let rows = ITEMS.filter(it=>{
+    if(filter==='as' && it.type!=='as') return false;
+    if(filter==='pr' && it.type!=='pr') return false;
+    if(filter==='overdue' && !it.overdue) return false;
+    if(q && !(it.store+it.customer+it.title).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{
+    let av=a[sortKey], bv=b[sortKey];
+    if(typeof av==='string') return sortDir*av.localeCompare(bv);
+    return sortDir*(av-bv);
+  });
+  const tbody = document.getElementById('tbody');
+  document.getElementById('empty-msg').style.display = rows.length? 'none':'block';
+  tbody.innerHTML = rows.map(it=>`
+    <tr>
+      <td class="store-cell">${it.store===MY_STORE?'<span class="mine-dot"></span>':''}${it.store}</td>
+      <td><span class="type-pill ${it.type}">${it.type==='as'?'AS':'예약'}</span></td>
+      <td>${it.title}</td>
+      <td class="cust">${it.customer}</td>
+      <td>${it.status}</td>
+      <td><span class="days-pill ${it.overdue?'overdue':''}">${it.days===0?'오늘':it.days+'일째'}</span></td>
+    </tr>`).join('');
+}
+render();
+</script>
+</body>
+</html>
