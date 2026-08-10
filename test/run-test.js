@@ -50,21 +50,27 @@ function serve(){
   await page.selectOption('#login-staff', { label: '신재현' });
   for(const d of ['0','0','0','0']) await page.click(`#keypad button[data-k="${d}"]`);
   await page.waitForTimeout(300);
-  assert(await page.isVisible('#home-grid'), '로그인 성공 후 통합 피드 홈 화면 표시');
-  assert(await page.isVisible('#home-feed-columns .home-feed-col-head.as'), '홈 화면에 AS 접수 컬럼 표시');
-  assert(await page.isVisible('#home-feed-columns .home-feed-col-head.pr'), '홈 화면에 상품 예약 컬럼 표시');
-  const storeChipCount = await page.$$eval('.home-chip.store', els => els.length);
-  assert(storeChipCount === 3, `홈 화면 매장 필터 칩 3개(전체 매장 + 매장 2곳) 표시 (실제 ${storeChipCount})`);
+  assert(await page.isVisible('#app'), '로그인 성공 후 앱(사이드바 구조) 표시');
+  assert(await page.isVisible('#view-board.active'), '로그인 직후 첫 화면 = 처리 현황판');
+  assert(await page.isVisible('#board-hq'), '본사 제품 단계 보드 표시');
+  assert(await page.isVisible('#board-other'), '타사 제품 단계 보드 표시');
+  assert(await page.isVisible('#board-pr'), '상품 예약 단계 보드 표시');
+  const hqCols = await page.$$eval('#board-hq .bcol', els => els.length);
+  assert(hqCols === 2, `본사 제품 보드 칸 2개 (실제 ${hqCols})`);
+  const otherCols = await page.$$eval('#board-other .bcol', els => els.length);
+  assert(otherCols === 6, `타사 제품 보드 칸 6개 (실제 ${otherCols})`);
+  const prCols = await page.$$eval('#board-pr .bcol', els => els.length);
+  assert(prCols === 5, `상품 예약 보드 칸 5개 (실제 ${prCols})`);
+  const kpiCount = await page.$$eval('#board-kpi .k', els => els.length);
+  assert(kpiCount === 4, `현황판 요약 카드 4개 (실제 ${kpiCount})`);
 
-  // ---- 매장 칩 클릭(필터) → "매장 화면 바로 열기" 버튼으로 그 매장 화면 진입 ----
-  await page.click('.home-chip.store[data-store="2"]');
-  await page.waitForTimeout(150);
-  await page.click('#home-enter-store-row .enter-store-btn');
+  // ---- 보는 범위(매장) 드롭다운 ----
+  const scopeOpts = await page.$$eval('#board-scope-select option', els => els.map(e => e.value));
+  assert(scopeOpts[0] === 'all' && scopeOpts.length === 3, `범위 선택에 전체 매장 + 매장 2곳 (실제 ${scopeOpts.length}개)`);
+  await page.selectOption('#board-scope-select', '2');
   await page.waitForTimeout(300);
-  assert(await page.isVisible('#app'), '매장 선택 후 앱 화면 표시');
-  assert(!(await page.isVisible('#home-grid')), '매장 선택 후 홈 화면은 숨겨짐');
-  const currentStoreLabel = await page.textContent('#as-current-store-name');
-  assert(currentStoreLabel.trim().length > 0, '현재 매장 표시 바에 매장명 노출');
+  assert((await page.textContent('#board-scope-name')).trim() === '로데오점', '범위를 로데오점으로 바꾸면 현황판 라벨 갱신');
+  assert((await page.textContent('#as-current-store-name')).trim() === '로데오점', 'AS 화면 범위 라벨도 같이 갱신');
 
   // ---- Go to AS tab ----
   await page.click('.sidebar nav button[data-tab="as"]');
@@ -243,35 +249,48 @@ function serve(){
   const prRangeVisible = await page.$eval('#pr-stat-custom-range', el => getComputedStyle(el).display !== 'none');
   assert(prRangeVisible, '예약 통계에서도 "기간 직접 설정" 선택 시 날짜 입력칸 노출');
 
-  // ================= "매장 변경" → 홈 화면으로 복귀 확인 =================
-  await page.click('.sidebar nav button[data-tab="as"]');
-  await page.waitForTimeout(150);
-  await page.click('#view-as .change-store-btn');
-  await page.waitForTimeout(250);
-  assert(await page.isVisible('#home-grid'), '"매장 변경" 클릭 시 홈 화면으로 복귀');
-  assert(!(await page.isVisible('#app')), '"매장 변경" 클릭 시 앱 화면은 숨겨짐');
-  // 다른 매장으로 다시 들어가서 이후 흐름에 지장 없는지 확인
-  await page.click('.home-chip.store[data-store="1"]');
-  await page.waitForTimeout(150);
-  await page.click('#home-enter-store-row .enter-store-btn');
-  await page.waitForTimeout(250);
-  assert(await page.isVisible('#app'), '다른 매장 재선택 후 앱 화면 정상 표시');
+  // ================= 현황판 ↔ 목록 연결 확인 =================
+  await page.click('.sidebar nav button[data-tab="board"]');
+  await page.waitForTimeout(400);
+  assert(await page.isVisible('#view-board.active'), '사이드바에서 처리 현황판으로 복귀');
 
-  // ================= 홈 피드 항목 클릭 → 그 매장의 AS 상세로 바로 진입 확인 =================
-  await page.click('#view-as .change-store-btn');
-  await page.waitForTimeout(250);
-  await page.click('.home-chip.store[data-store="all"]'); // 매장 필터를 전체로 되돌려서 앞서 등록한 항목이 다시 보이게 함
-  await page.waitForTimeout(150);
-  const homeFeedAsHtml = await page.textContent('#home-feed-columns');
-  assert(homeFeedAsHtml.includes('타사 브랜드 X 기기') && homeFeedAsHtml.includes('박고객'), '홈 피드에 처리중인 AS 항목(타사 브랜드 X 기기) 표시');
-  await page.click('.home-feed-item.as:has-text("박고객")');
-  await page.waitForTimeout(300);
-  assert(await page.isVisible('#view-as.active'), '홈 피드 AS 항목 클릭 시 AS 접수 화면으로 이동');
-  assert(!(await page.isVisible('#home-grid')), '홈 피드 항목 클릭 시 홈 화면은 숨겨짐');
-  const jumpedDetail = await page.textContent('#as-detail');
-  assert(jumpedDetail.includes('박고객'), '홈 피드에서 클릭한 항목의 상세가 바로 열림');
-  const jumpedStoreLabel = await page.textContent('#as-current-store-name');
-  assert(jumpedStoreLabel.trim().length > 0, '홈 피드 클릭 진입 시 현재 매장 표시 바에 매장명 노출');
+  // 전체 매장 범위로 바꾸면 앞서 등록한 건들이 모두 보드에 잡혀야 함
+  await page.selectOption('#board-scope-select', 'all');
+  await page.waitForTimeout(400);
+  assert((await page.textContent('#board-scope-name')).trim() === '전체 매장', '범위를 전체 매장으로 전환');
+  const otherTot = await page.textContent('#other-tot');
+  assert(/[1-9]/.test(otherTot), `타사 제품 보드 합계에 건수 표시 (실제 ${otherTot})`);
+
+  // 타사 보드에서 실제 건이 있는 칸을 눌러 그 단계 목록으로 진입
+  const targetCol = await page.$('#board-other .bcol:has(.bcard)');
+  assert(!!targetCol, '타사 보드에 카드가 있는 칸 존재');
+  await targetCol.click();
+  await page.waitForTimeout(500);
+  assert(await page.isVisible('#view-as.active'), '보드 칸 클릭 → AS 접수 화면으로 이동');
+  assert(await page.isVisible('#as-stage-banner.on'), '단계만 보는 중임을 알리는 안내 배너 표시');
+  const bannerTxt = await page.textContent('#as-stage-banner');
+  assert(bannerTxt.includes('단계만 보는 중'), '배너에 단계 필터 안내 문구 표시');
+  const stagedRows = await page.$$eval('#as-list .row', els => els.length);
+  assert(stagedRows >= 1, `단계 필터 적용된 목록에 항목 표시 (실제 ${stagedRows}건)`);
+
+  // 배너의 해제 버튼으로 전체 보기 복귀
+  await page.click('#as-stage-banner button');
+  await page.waitForTimeout(400);
+  assert(!(await page.isVisible('#as-stage-banner.on')), '단계 해제 시 배너 사라짐');
+  const allRows = await page.$$eval('#as-list .row', els => els.length);
+  assert(allRows >= stagedRows, `단계 해제 후 목록이 더 넓어짐 (${stagedRows} → ${allRows})`);
+
+  // 전체 매장 범위에서는 목록 각 줄에 매장명이 굵게 표시됨
+  const asListHtml = await page.innerHTML('#as-list');
+  assert(asListHtml.includes('<b>'), '전체 매장 범위일 때 목록에 매장명 강조 표시');
+
+  // 예약 보드 칸 클릭 → 상품 예약 화면 + 상태 필터 적용
+  await page.click('.sidebar nav button[data-tab="board"]');
+  await page.waitForTimeout(350);
+  await page.click('#board-pr .bcol');
+  await page.waitForTimeout(400);
+  assert(await page.isVisible('#view-product.active'), '예약 보드 칸 클릭 → 상품 예약 화면으로 이동');
+  assert((await page.$eval('#pr-status-filter', el => el.value)) === 'requested', '예약 상태 필터가 그 단계로 지정됨');
 
   console.log('\n--- console/page errors captured ---');
   errors.forEach(e => console.log(e));
