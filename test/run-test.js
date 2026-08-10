@@ -89,6 +89,10 @@ function serve(){
   await page.click('#as-new-btn');
   await page.waitForTimeout(150);
   assert(await page.isVisible('#f-as-product-area'), '등록 모달의 제품 영역 표시');
+  assert(await page.isVisible('#f-staff'), '등록 모달에 접수자 선택 필드 표시(매장 아래)');
+  const staffDefault = await page.$eval('#f-staff', el => el.value);
+  assert(staffDefault === '신재현', `접수자 기본값 = 로그인한 사람 (실제 ${staffDefault})`);
+  await page.selectOption('#f-staff', '실장님');
 
   // hq는 기본 선택이어야 함
   const hqActive = await page.$eval('#f-as-cat-toggle button[data-cat="hq"]', el => el.classList.contains('active'));
@@ -125,6 +129,7 @@ function serve(){
 
   const row1 = await page.textContent('#as-list');
   assert(row1.includes('그래피티C') && row1.includes('김고객'), 'AS 목록에 신규 접수 표시');
+  assert(row1.includes('등록 실장님'), '선택한 접수자(실장님)가 등록자로 저장됨');
   assert(row1.includes('본사 제품'), '목록 카테고리 배지 = 본사 제품');
   assert(row1.includes('접수'), '목록 상태 배지 = 접수(초기 상태)');
 

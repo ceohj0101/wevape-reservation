@@ -598,6 +598,7 @@ function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;',
    AS 접수 — 본사 제품 카탈로그 (실제 취급 제품 기준)
    ========================================================= */
 const AS_CATEGORY_LABEL = { hq:'본사 제품', other:'타사 제품' };
+let STAFF_LIST = [];
 let AS_CATEGORY_FILTER = 'all';
 let AS_STAGE_FILTER = null; // 현황판 칸에서 들어왔을 때 그 단계만 보기 (null이면 단계 필터 없음)
 
@@ -736,7 +737,19 @@ async function loadStaffOptions(){
   const { data, error } = await sb.from('resv_staff_public').select('*').order('name');
   const sel = document.getElementById('login-staff');
   if(error){ sel.innerHTML = '<option value="">불러오기 실패 — 새로고침 해주세요</option>'; console.error(error); return; }
+  STAFF_LIST = data || [];
   sel.innerHTML = '<option value="">이름 선택</option>' + data.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+}
+/* 접수자(실제로 손님을 응대해 접수한 직원) 선택용 옵션.
+   로그인한 사람이 기본이지만, 다른 직원 대신 입력해주는 경우가 많아서 바꿀 수 있게 합니다. */
+function staffOptionsHtml(){
+  const names = STAFF_LIST.map(s=>s.name);
+  if(ME && ME.name && !names.includes(ME.name)) names.unshift(ME.name);
+  return names.map(n=>`<option value="${esc(n)}" ${ME && n===ME.name?'selected':''}>${esc(n)}</option>`).join('');
+}
+function pickedStaff(){
+  const el = document.getElementById('f-staff');
+  return (el && el.value) ? el.value : (ME ? ME.name : '');
 }
 function renderPinDots(){
   document.querySelectorAll('#pin-dots span').forEach((el,i)=>{
@@ -1268,6 +1281,9 @@ document.getElementById('pr-new-btn').addEventListener('click', ()=>{
       <label>어느 매장 접수 건인가요?</label>
       <select id="f-store">${storeOpts}</select>
       <div class="ssb-hint">지금 보고 있는 매장이 기본 선택되어 있습니다. 다른 매장 대신 접수할 때는 여기서 바꿔주세요.</div>
+      <label style="margin-top:10px;">접수자</label>
+      <select id="f-staff">${staffOptionsHtml()}</select>
+      <div class="ssb-hint">실제로 손님을 응대해 접수한 직원을 골라주세요. 기본값은 로그인한 사람입니다.</div>
     </div>
     <label>제품명 (고객이 찾는 상품)</label><input id="f-product" placeholder="예: RELX 파이 맥스 머스캣">
     <div class="row2">
@@ -1303,7 +1319,7 @@ async function submitProductRequest(){
     customer_phone: document.getElementById('f-cphone').value.trim() || null,
     reason_id: document.getElementById('f-reason').value || null,
     memo: document.getElementById('f-memo').value.trim() || null,
-    requested_by: ME.name,
+    requested_by: pickedStaff(),
     status: 'requested',
     photo_urls
   };
@@ -1599,6 +1615,9 @@ document.getElementById('as-new-btn').addEventListener('click', ()=>{
       <label>어느 매장 접수 건인가요?</label>
       <select id="f-store">${storeOpts}</select>
       <div class="ssb-hint">지금 보고 있는 매장이 기본 선택되어 있습니다. 다른 매장 대신 접수할 때는 여기서 바꿔주세요.</div>
+      <label style="margin-top:10px;">접수자</label>
+      <select id="f-staff">${staffOptionsHtml()}</select>
+      <div class="ssb-hint">실제로 손님을 응대해 접수한 직원을 골라주세요. 기본값은 로그인한 사람입니다.</div>
     </div>
     <label>제품 구분</label>
     <div class="type-toggle" id="f-as-cat-toggle">
@@ -1683,7 +1702,7 @@ async function submitAsRequest(){
     report_key,
     symptom_memo: document.getElementById('f-memo').value.trim() || null,
     received_date: document.getElementById('f-received-date').value || new Date().toISOString().slice(0,10),
-    requested_by: ME.name,
+    requested_by: pickedStaff(),
     status: 'received',
     photo_urls
   };
