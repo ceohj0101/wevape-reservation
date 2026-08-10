@@ -228,55 +228,26 @@
   .current-store-bar .change-store-btn:hover{border-color:var(--yellow-dark);color:var(--black);}
   .scope-select{border:1.5px solid var(--yellow-dark);background:#fffbe8;color:#5c4600;border-radius:20px;padding:7px 13px;font-size:12.5px;font-weight:800;font-family:inherit;cursor:pointer;outline:none;}
 
-  /* ---------- 처리 현황판 (단계 보드) ----------
-     AS는 처리 단계가 정해져 있어서, 어느 단계에 몇 건이 쌓여있는지가 곧 "지금 뭘 해야 하는지"입니다.
-     본사 제품(2단계)과 타사 제품(6단계)은 흐름이 달라서 보드를 따로 보여줍니다. */
-  .board-head{display:flex;align-items:center;gap:9px;margin:0 0 11px;flex-wrap:wrap;}
-  .board-head .bdot{width:9px;height:9px;border-radius:50%;background:var(--red);flex-shrink:0;}
-  .board-head.pr .bdot{background:#2f6fe5;}
-  .board-head h2{font-size:15.5px;font-weight:800;margin:0;letter-spacing:-.2px;}
-  .board-head .btot{font-size:11.5px;font-weight:800;color:var(--gray);background:var(--white);padding:3px 10px;border-radius:20px;}
-  .board-head .bhint{font-size:11.5px;color:var(--gray);margin-left:auto;}
-
-  .board{display:grid;gap:11px;margin-bottom:28px;}
-  .board.cols-2{grid-template-columns:repeat(2,1fr);}
-  .board.cols-5{grid-template-columns:repeat(5,1fr);}
-  .board.cols-6{grid-template-columns:repeat(6,1fr);}
-  .bcol{background:rgba(255,255,255,.62);border-radius:16px;padding:12px;min-height:130px;cursor:pointer;transition:box-shadow .14s,transform .12s;border:1px solid transparent;}
-  .bcol:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);transform:translateY(-2px);border-color:var(--border);}
-  .bcol.hot{background:#fdeaea;}
-  .bcol.donecol{background:#e8f6ed;}
-  .bcol-head{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 2px;}
-  .bcol-head .cn{font-size:11.5px;font-weight:800;letter-spacing:-.2px;line-height:1.3;}
-  .bcol-head .cc{font-size:17px;font-weight:800;flex-shrink:0;}
-  .bcol.hot .bcol-head .cc{color:var(--red);}
-  .bcol.donecol .bcol-head .cc{color:#2f9e58;}
-  .bcol-sub{font-size:10px;color:var(--gray);font-weight:600;padding:0 2px;margin:3px 0 10px;line-height:1.35;}
-  .bcard{background:var(--white);border-radius:11px;padding:9px 10px;margin-bottom:6px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
-  .bcard .bp{font-size:11.5px;font-weight:700;line-height:1.35;margin-bottom:3px;word-break:break-all;}
-  .bcard .bm{font-size:10px;color:var(--gray);font-weight:600;}
-  .bcard .bd{font-size:10px;font-weight:800;color:var(--gray);margin-top:5px;display:block;}
-  .bcard .bd.old{color:var(--red);}
-  .bmore{width:100%;border:1px dashed var(--border);background:none;border-radius:10px;padding:8px;font-size:10.5px;font-weight:800;color:var(--gray);cursor:pointer;font-family:inherit;}
-  .bmore:hover{border-color:var(--yellow-dark);color:var(--black);}
-  .bcol-empty{text-align:center;color:#bebcb6;font-size:11px;padding:18px 0;}
-
-  .stage-banner{display:none;align-items:center;justify-content:space-between;gap:10px;background:#fffbe8;border:1.5px solid var(--yellow-dark);border-radius:12px;padding:10px 14px;margin-bottom:12px;flex-wrap:wrap;}
-  .stage-banner.on{display:flex;}
-  .stage-banner .sb-t{font-size:12.5px;font-weight:800;color:#5c4600;}
-  .stage-banner button{border:1.5px solid var(--yellow-dark);background:#fff;color:#5c4600;border-radius:20px;padding:5px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;}
-
-  .board-kpi{display:flex;gap:11px;margin-bottom:22px;flex-wrap:wrap;}
-  .board-kpi .k{flex:1;min-width:118px;background:var(--white);border-radius:16px;padding:15px 17px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
-  .board-kpi .k .n{font-size:24px;font-weight:800;line-height:1;letter-spacing:-.5px;}
-  .board-kpi .k .n.red{color:var(--red);}
-  .board-kpi .k .l{font-size:11px;color:var(--gray);font-weight:700;margin-top:5px;}
-
-  @media (max-width:1100px){ .board.cols-6{grid-template-columns:repeat(3,1fr);} .board.cols-5{grid-template-columns:repeat(3,1fr);} }
-  @media (max-width:700px){
-    .board{display:flex;overflow-x:auto;gap:10px;padding-bottom:6px;}
-    .bcol{flex:0 0 175px;}
-  }
+  /* ---------- 단계 스트립 (예약/AS 각 탭 상단) ----------
+     그 탭의 처리 단계별 건수를 한 줄로 보여주고, 누르면 그 단계만 아래 목록에 뜹니다. */
+  .stage-strip{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:10px;}
+  .stage-strip .ss-head{display:flex;align-items:baseline;gap:8px;margin-bottom:9px;}
+  .stage-strip .ss-head b{font-size:12.5px;font-weight:800;}
+  .stage-strip .ss-head span{font-size:11px;color:var(--gray);font-weight:600;}
+  .stage-strip .ss-tiles{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;}
+  .stage-tile{flex:0 0 auto;min-width:82px;border:1.5px solid var(--border);background:var(--bg);border-radius:10px;
+    padding:8px 11px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .12s,background .12s;}
+  .stage-tile:hover{border-color:var(--yellow-dark);}
+  .stage-tile .sc{display:block;font-size:19px;font-weight:800;line-height:1;}
+  .stage-tile .sl{display:block;font-size:11.5px;font-weight:800;margin-top:5px;white-space:nowrap;}
+  .stage-tile .ss{display:block;font-size:10px;color:var(--gray);font-weight:600;margin-top:2px;white-space:nowrap;}
+  .stage-tile.hot{background:#fdeaea;border-color:#f6b9bb;}
+  .stage-tile.hot .sc{color:var(--red);}
+  .stage-tile.done{background:#eef7f0;}
+  .stage-tile.done .sc{color:#2f9e58;}
+  .stage-tile.on{background:var(--black);border-color:var(--black);}
+  .stage-tile.on .sc,.stage-tile.on .sl{color:#fff;}
+  .stage-tile.on .ss{color:rgba(255,255,255,.6);}
 
   /* ---------- AS 등록 모달 — 매장 선택 강조 ---------- */
   .store-select-box{background:#fffbe8;border:1.5px solid var(--yellow-dark);border-radius:10px;padding:11px 13px;margin-bottom:2px;}
@@ -326,7 +297,6 @@
       <nav>
         <button data-tab="as" class="active" data-title="AS 접수">AS 접수</button>
         <button data-tab="product" data-title="상품 예약">상품 예약 (미취급·품절)</button>
-        <button data-tab="board" data-title="처리 현황판">처리 현황판</button>
         <button data-tab="prstats" data-title="예약 통계">예약 통계</button>
         <button data-tab="asstats" data-title="AS 통계">AS 통계</button>
         <button data-tab="settings" data-title="설정">설정</button>
@@ -338,36 +308,6 @@
     </div>
 
     <div class="main-area">
-      <!-- ---------- 처리 현황판 (단계 보드) ---------- -->
-      <section class="view" id="view-board">
-        <div class="current-store-bar">
-          <span>보는 범위 <b id="board-scope-name">-</b></span>
-          <select class="scope-select" id="board-scope-select" onchange="setScope(this.value)"></select>
-        </div>
-        <div class="board-kpi" id="board-kpi"></div>
-
-        <div class="board-head">
-          <span class="bdot"></span><h2>AS 접수 — 본사 제품</h2>
-          <span class="btot" id="hq-tot">-</span>
-          <span class="bhint">칸을 누르면 그 단계 목록으로 바로 들어갑니다</span>
-        </div>
-        <div class="board cols-2" id="board-hq"></div>
-
-        <div class="board-head">
-          <span class="bdot"></span><h2>AS 접수 — 타사 제품</h2>
-          <span class="btot" id="other-tot">-</span>
-          <span class="bhint">빨간 칸 = 3일 넘게 밀린 건이 있는 단계</span>
-        </div>
-        <div class="board cols-6" id="board-other"></div>
-
-        <div class="board-head pr">
-          <span class="bdot"></span><h2>상품 예약</h2>
-          <span class="btot" id="pr-tot">-</span>
-          <span class="bhint">미취급·품절 상품 문의 흐름</span>
-        </div>
-        <div class="board cols-5" id="board-pr"></div>
-      </section>
-
       <!-- ---------- 상품 예약 (미취급 + 품절) ---------- -->
       <section class="view" id="view-product">
         <div class="current-store-bar"><span>보는 범위 <b id="pr-current-store-name">-</b></span><select class="scope-select" id="pr-scope-select" onchange="setScope(this.value)"></select></div>
@@ -376,10 +316,11 @@
           <button data-type="unstocked">미취급 상품</button>
           <button data-type="out_of_stock">품절 상품</button>
         </div>
+        <div id="pr-stage-strip"></div>
         <div class="toolbar">
           <div class="filters">
             <select id="pr-store-filter" style="display:none;"></select>
-            <select id="pr-status-filter">
+            <select id="pr-status-filter" style="display:none;">
               <option value="all">전체 상태</option>
               <option value="requested">문의접수(검토대기)</option>
               <option value="approved">발주가능</option>
@@ -410,6 +351,7 @@
           <button data-cat="hq">본사 제품</button>
           <button data-cat="other">타사 제품</button>
         </div>
+        <div id="as-stage-strip"></div>
         <div class="toolbar">
           <div class="filters">
             <select id="as-store-filter" style="display:none;"></select>
@@ -423,7 +365,6 @@
           <button class="btn-new" id="as-new-btn">+ 새 AS 접수</button>
         </div>
 
-        <div id="as-stage-banner"></div>
         <div class="md-layout stacked" id="as-md-root">
           <div class="md-list" id="as-list"></div>
           <div class="md-detail">
@@ -578,6 +519,7 @@ let pinBuffer = '';
 let PR_ITEMS = [];
 let PR_SELECTED_ID = null;
 let PR_TYPE_FILTER = 'all';
+let PR_ITEMS_RAW = [];
 
 let AS_ITEMS = [];
 let AS_ITEMS_RAW = [];
@@ -830,162 +772,105 @@ async function enterApp(){
   }
   document.getElementById('app').style.display='block';
   document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span> ${esc(scopeLabel())}`;
-  await refreshBoard();
   await refreshProductList();
   await refreshAsList();
 }
 
-/* ================= 처리 현황판 (단계 보드) =================
-   AS는 처리 단계가 정해져 있어서, 어느 단계에 몇 건이 걸려있는지가 곧 "지금 뭘 해야 하는지"입니다.
-   본사 제품(2단계)과 타사 제품(6단계)은 흐름이 서로 달라서 보드를 따로 그립니다.
-   칸을 누르면 그 단계만 걸러진 목록으로 바로 이동합니다. */
-let BOARD_AS = [];   // 보드용 AS 원본 (완료 포함)
-let BOARD_PR = [];   // 보드용 예약 원본
-
+/* ================= 단계 스트립 (각 탭 상단의 처리 현황) =================
+   AS 탭에는 AS 단계만, 상품 예약 탭에는 예약 단계만 보여줍니다.
+   두 개를 한 화면에 같이 놓으면 눈이 분산돼서 각자 자기 화면에서만 보이게 했습니다.
+   타일을 누르면 그 단계만 걸러진 목록이 바로 아래에 뜹니다. */
 const PR_FLOW = [
-  {code:'requested', label:'검토 대기',  sub:'실장님 발주 판정 필요'},
-  {code:'approved',  label:'발주 가능',  sub:'입고 기다리는 중'},
-  {code:'arrived',   label:'입고 완료',  sub:'고객에게 연락할 차례'},
-  {code:'contacted', label:'연락 완료',  sub:'구매 여부 확인 중'},
-  {code:'purchased', label:'구매 완료',  sub:'끝난 건', done:true},
+  {code:'requested', label:'문의접수', sub:'검토 대기'},
+  {code:'approved',  label:'발주가능', sub:'입고 대기'},
+  {code:'arrived',   label:'입고완료', sub:'연락할 차례'},
+  {code:'contacted', label:'연락완료', sub:'구매 확인 중'},
+  {code:'purchased', label:'구매완료', sub:'끝난 건', done:true},
+  {code:'rejected',  label:'발주불가', sub:'단종·미유통', done:true},
+  {code:'abandoned', label:'구매포기', sub:'고객 취소', done:true},
 ];
 const AS_STAGE_SUB = {
-  received:'맡아둔 상태', erp_done:'ERP 기입까지 끝난 건',
-  confirmed:'로데오점으로 넘어감', sent_out:'제조사 회신 기다리는 중',
-  restocked:'지점으로 보낼 차례', sent_branch:'고객에게 연락할 차례', picked_up:'고객이 찾아간 건',
+  received:'맡아둔 상태', erp_done:'ERP 기입 끝',
+  confirmed:'로데오점 확인', sent_out:'제조사 회신 대기',
+  restocked:'지점 보낼 차례', sent_branch:'고객 연락 차례', picked_up:'고객이 찾아감',
 };
 
-/* 지금 보고 있는 범위(scope)에 해당하는 행인지 판단합니다. CURRENT_STORE_ID가 'all'이면 전 매장. */
 function inScope(row){
   return CURRENT_STORE_ID === 'all' || String(row.store_id) === String(CURRENT_STORE_ID);
 }
 function scopeLabel(){
   return CURRENT_STORE_ID === 'all' ? '전체 매장' : storeName(CURRENT_STORE_ID);
 }
-
-async function refreshBoard(){
-  if(!STORES.length) return;
-  const [{ data: asData, error: asErr }, { data: prData, error: prErr }] = await Promise.all([
-    sb.from('resv_as_requests').select('id, store_id, status, category, received_date, created_at, product_family, product_type, product_option, device_name, customer_name, requested_by'),
-    sb.from('resv_product_requests').select('id, store_id, status, product_name, customer_name, created_at, requested_by'),
-  ]);
-  if(asErr) console.error(asErr);
-  if(prErr) console.error(prErr);
-  BOARD_AS = asData || [];
-  BOARD_PR = prData || [];
-  renderBoard();
+function stageTile(label, sub, count, active, opts){
+  opts = opts || {};
+  return `<button class="stage-tile ${active?'on':''} ${opts.hot?'hot':''} ${opts.done?'done':''}" onclick="${opts.onclick}">
+    <span class="sc">${count}</span><span class="sl">${esc(label)}</span>${sub?`<span class="ss">${esc(sub)}</span>`:''}
+  </button>`;
 }
 
-function boardCardHtml(r, kind){
-  const days = daysSince(kind==='as' ? (r.received_date || r.created_at) : r.created_at);
-  const title = kind==='as' ? asProductLabel(r) : (r.product_name || '-');
-  const storeTag = CURRENT_STORE_ID==='all' ? `${esc(storeName(r.store_id))} · ` : '';
-  return `<div class="bcard">
-    <div class="bp">${esc(title)}</div>
-    <div class="bm">${storeTag}${esc(r.customer_name || '고객 미기재')}</div>
-    <span class="bd ${days>30?'old':''}">${days===0?'오늘 접수':days+'일째'}</span>
-  </div>`;
+/* ---------- AS 단계 스트립 ---------- */
+function renderAsStrip(){
+  const el = document.getElementById('as-stage-strip');
+  if(!el || !AS_ITEMS_RAW) return;
+  const cats = AS_CATEGORY_FILTER==='all' ? ['hq','other'] : [AS_CATEGORY_FILTER];
+  const CAT_NAME = { hq:'본사 제품', other:'타사 제품' };
+  let html = '';
+  cats.forEach(cat=>{
+    const rows = AS_ITEMS_RAW.filter(r=>(r.category||'hq')===cat);
+    const flow = STATUS_FLOW_AS[cat];
+    const allActive = !AS_STAGE_FILTER;
+    let tiles = stageTile('전체', '', rows.length, allActive, {onclick:`setAsStage(null)`});
+    flow.forEach((st,i)=>{
+      const items = rows.filter(r=>r.status===st.code);
+      const isDone = i===flow.length-1;
+      const hot = !isDone && items.some(r=>daysSince(r.received_date||r.created_at)>=3);
+      tiles += stageTile(st.label, AS_STAGE_SUB[st.code]||'', items.length,
+                         AS_STAGE_FILTER===st.code, {hot, done:isDone, onclick:`setAsStage('${st.code}')`});
+    });
+    html += `<div class="stage-strip">
+      <div class="ss-head"><b>${CAT_NAME[cat]}</b><span>${rows.length}건 · ${esc(scopeLabel())}</span></div>
+      <div class="ss-tiles">${tiles}</div></div>`;
+  });
+  el.innerHTML = html;
+}
+function setAsStage(code){
+  AS_STAGE_FILTER = code;
+  applyAsFilters(true);
 }
 
-function renderStageBoard(elId, flow, rows, kind, catForFilter){
-  const el = document.getElementById(elId);
-  if(!el) return 0;
-  let total = 0;
-  el.innerHTML = flow.map((st, i)=>{
+/* ---------- 상품 예약 단계 스트립 ---------- */
+function renderPrStrip(){
+  const el = document.getElementById('pr-stage-strip');
+  if(!el || !PR_ITEMS_RAW) return;
+  const cur = document.getElementById('pr-status-filter').value;
+  const rows = PR_TYPE_FILTER==='all' ? PR_ITEMS_RAW : PR_ITEMS_RAW.filter(r=>r.request_type===PR_TYPE_FILTER);
+  let tiles = stageTile('전체','', rows.length, cur==='all', {onclick:`setPrStage('all')`});
+  PR_FLOW.forEach(st=>{
     const items = rows.filter(r=>r.status===st.code);
-    total += items.length;
-    const isDone = st.done || i===flow.length-1;
-    const overdue = !isDone && items.some(r=>daysSince(kind==='as' ? (r.received_date||r.created_at) : r.created_at) >= 3);
-    const shown = items.slice(0,3);
-    const rest = items.length - shown.length;
-    const sub = st.sub || AS_STAGE_SUB[st.code] || '';
-    return `<div class="bcol ${overdue?'hot':''} ${isDone?'donecol':''}" onclick="openStage('${kind}','${st.code}','${catForFilter||''}')">
-      <div class="bcol-head"><span class="cn">${esc(st.label)}</span><span class="cc">${items.length}</span></div>
-      <div class="bcol-sub">${esc(sub)}</div>
-      ${items.length===0 ? '<div class="bcol-empty">비어 있음</div>'
-        : shown.map(r=>boardCardHtml(r, kind)).join('')}
-      ${rest>0 ? `<button class="bmore">+ ${rest}건 더보기</button>` : ''}
-    </div>`;
-  }).join('');
-  return total;
-}
-
-function renderBoard(){
-  const asRows = BOARD_AS.filter(inScope);
-  const prRows = BOARD_PR.filter(inScope);
-
-  const label = scopeLabel();
-  ['board-scope-name','pr-current-store-name','as-current-store-name'].forEach(id=>{
-    const el = document.getElementById(id); if(el) el.textContent = label;
+    tiles += stageTile(st.label, st.sub, items.length, cur===st.code,
+                       {done:st.done, onclick:`setPrStage('${st.code}')`});
   });
-  ['board-scope-select','pr-scope-select','as-scope-select'].forEach(id=>{
-    const el = document.getElementById(id); if(el) el.value = String(CURRENT_STORE_ID);
-  });
-
-  // 상단 요약
-  const asWip = asRows.filter(r=>!isAsDone(r));
-  const overdue = asWip.filter(r=>daysSince(r.received_date||r.created_at) >= 3);
-  const prWait = prRows.filter(r=>r.status!=='purchased' && r.status!=='rejected' && r.status!=='abandoned');
-  const needCall = prRows.filter(r=>r.status==='arrived').length
-                 + asRows.filter(r=>r.status==='sent_branch').length;
-  document.getElementById('board-kpi').innerHTML = `
-    <div class="k"><div class="n ${overdue.length?'red':''}">${asWip.length}</div><div class="l">AS 처리중</div></div>
-    <div class="k"><div class="n ${overdue.length?'red':''}">${overdue.length}</div><div class="l">3일 이상 밀림</div></div>
-    <div class="k"><div class="n">${needCall}</div><div class="l">고객 연락 차례</div></div>
-    <div class="k"><div class="n">${prWait.length}</div><div class="l">예약 대기</div></div>`;
-
-  const hqRows    = asRows.filter(r=>(r.category||'hq')==='hq');
-  const otherRows = asRows.filter(r=>(r.category||'hq')==='other');
-
-  const hqTot    = renderStageBoard('board-hq',    STATUS_FLOW_AS.hq,    hqRows,    'as', 'hq');
-  const otherTot = renderStageBoard('board-other', STATUS_FLOW_AS.other, otherRows, 'as', 'other');
-  const prTot    = renderStageBoard('board-pr',    PR_FLOW,              prRows,    'pr', '');
-
-  document.getElementById('hq-tot').textContent    = hqTot + '건';
-  document.getElementById('other-tot').textContent = otherTot + '건';
-  document.getElementById('pr-tot').textContent    = prTot + '건';
+  el.innerHTML = `<div class="stage-strip">
+    <div class="ss-head"><b>진행 단계</b><span>${rows.length}건 · ${esc(scopeLabel())}</span></div>
+    <div class="ss-tiles">${tiles}</div></div>`;
+}
+function setPrStage(code){
+  document.getElementById('pr-status-filter').value = code;
+  refreshProductList();
 }
 
-/* AS 목록이 "특정 단계만" 보고 있을 때, 그 사실을 목록 위에 알려주고 해제할 수 있게 합니다. */
-function renderAsStageBanner(){
-  const el = document.getElementById('as-stage-banner');
-  if(!el) return;
-  if(!AS_STAGE_FILTER){ el.className=''; el.innerHTML=''; return; }
-  const label = ALL_STATUS_LABELS_AS[AS_STAGE_FILTER] || AS_STAGE_FILTER;
-  el.className='stage-banner on';
-  el.innerHTML = `<span class="sb-t">현황판에서 들어옴 — "${esc(label)}" 단계만 보는 중</span>
-    <button onclick="clearAsStage()">이 단계 해제하고 전체 보기</button>`;
-}
-function clearAsStage(){ AS_STAGE_FILTER=null; renderAsStageBanner(); applyAsFilters(true); }
-
-/* 보드의 칸을 누르면 해당 목록 화면으로 이동하면서 그 단계만 걸러서 보여줍니다. */
-async function openStage(kind, statusCode, cat){
-  const tab = kind==='as' ? 'as' : 'product';
-  const btn = document.querySelector(`.sidebar nav button[data-tab="${tab}"]`);
-  if(btn) btn.click();
-  if(kind==='as'){
-    AS_CATEGORY_FILTER = cat || 'all';
-    document.querySelectorAll('#as-category-tabs button').forEach(x=>x.classList.toggle('active', x.dataset.cat===AS_CATEGORY_FILTER));
-    AS_STAGE_FILTER = statusCode;
-    document.getElementById('as-status-filter').value = 'all';
-    document.getElementById('as-q-filter').value = '';
-    renderAsStageBanner();
-    await refreshAsList();
-  } else {
-    PR_TYPE_FILTER = 'all';
-    document.querySelectorAll('#pr-type-tabs button').forEach(x=>x.classList.toggle('active', x.dataset.type==='all'));
-    document.getElementById('pr-status-filter').value = statusCode;
-    await refreshProductList();
-  }
-}
-
-/* 보는 범위(내 매장 / 전체 매장 / 특정 매장)를 바꾸면 현황판과 목록이 전부 그 범위로 갱신됩니다. */
+/* 보는 범위(전체 매장 / 특정 매장)를 바꾸면 두 화면 모두 그 범위로 갱신됩니다. */
 function setScope(v){
   CURRENT_STORE_ID = (v === 'all') ? 'all' : Number(v);
   localStorage.setItem('resv_current_store', String(CURRENT_STORE_ID));
   const label = scopeLabel();
+  ['pr-current-store-name','as-current-store-name'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent=label;
+  });
+  ['pr-scope-select','as-scope-select'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value=String(CURRENT_STORE_ID);
+  });
   document.getElementById('who-info').innerHTML = `<b>${ME.name}</b><span class="badge-role">${ME.role==='manager'?'실장':(ME.role==='admin'?'관리자':'직원')}</span> ${esc(label)}`;
-  renderBoard();
   refreshProductList();
   refreshAsList();
 }
@@ -1031,7 +916,6 @@ document.querySelectorAll('.sidebar nav button').forEach(btn=>{
     document.getElementById('view-'+btn.dataset.tab).classList.add('active');
     document.getElementById('mobile-title').textContent = btn.dataset.title;
     closeDrawer();
-    if(btn.dataset.tab === 'board') refreshBoard();
     if(btn.dataset.tab === 'prstats') refreshPrStats();
     if(btn.dataset.tab === 'asstats') refreshAsStats();
   });
@@ -1171,14 +1055,21 @@ async function submitAddPhoto(kind, id){
    상품 예약 (미취급 + 품절) — 목록 + 상세패널
    ========================================================= */
 async function fetchProductRequests(){
+  /* 단계 스트립에 각 단계 건수를 보여줘야 해서, 상태·유형 필터는 쿼리가 아니라 화면에서 겁니다.
+     (쿼리에서 걸러버리면 다른 단계가 몇 건인지 셀 수가 없습니다) */
   let q = sb.from('resv_product_requests').select('*').order('created_at', {ascending:false});
-  const statusF = document.getElementById('pr-status-filter').value;
   if(CURRENT_STORE_ID && CURRENT_STORE_ID !== 'all') q = q.eq('store_id', Number(CURRENT_STORE_ID));
-  if(statusF && statusF !== 'all') q = q.eq('status', statusF);
-  if(PR_TYPE_FILTER !== 'all') q = q.eq('request_type', PR_TYPE_FILTER);
   const { data, error } = await q;
   if(error){ console.error(error); return []; }
   return data;
+}
+function filterPrItems(items){
+  const statusF = document.getElementById('pr-status-filter').value;
+  return items.filter(r=>{
+    if(PR_TYPE_FILTER !== 'all' && r.request_type !== PR_TYPE_FILTER) return false;
+    if(statusF && statusF !== 'all' && r.status !== statusF) return false;
+    return true;
+  });
 }
 function prRowHtml(r){
   const selected = String(r.id)===String(PR_SELECTED_ID);
@@ -1257,7 +1148,9 @@ function renderProductList(resetSelection){
   list.innerHTML = PR_ITEMS.map(prRowHtml).join('');
 }
 async function refreshProductList(){
-  PR_ITEMS = await fetchProductRequests();
+  PR_ITEMS_RAW = await fetchProductRequests();
+  PR_ITEMS = filterPrItems(PR_ITEMS_RAW);
+  renderPrStrip();
   renderProductList(true);
   renderProductDetail();
 }
@@ -1549,6 +1442,7 @@ function renderAsList(resetSelection){
   list.innerHTML = AS_ITEMS.map(asRowHtml).join('');
 }
 function applyAsFilters(resetSelection){
+  renderAsStrip();
   AS_ITEMS = filterAsItems(AS_ITEMS_RAW);
   renderAsList(resetSelection);
   renderAsDetail();
@@ -1580,14 +1474,14 @@ async function revertAsStatus(id){
   toast('이전 단계로 되돌렸습니다'); refreshAsList();
 }
 document.getElementById('as-store-filter').addEventListener('change', refreshAsList);
-document.getElementById('as-status-filter').addEventListener('change', ()=>{ AS_STAGE_FILTER=null; renderAsStageBanner(); applyAsFilters(true); });
+document.getElementById('as-status-filter').addEventListener('change', ()=>{ AS_STAGE_FILTER=null; applyAsFilters(true); });
 document.getElementById('as-q-filter').addEventListener('input', ()=> applyAsFilters(true));
 document.getElementById('as-category-tabs').addEventListener('click', (e)=>{
   const b = e.target.closest('button'); if(!b) return;
   document.querySelectorAll('#as-category-tabs button').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
   AS_CATEGORY_FILTER = b.dataset.cat;
-  AS_STAGE_FILTER = null; renderAsStageBanner();
+  AS_STAGE_FILTER = null;
   applyAsFilters(true);
 });
 document.getElementById('as-back-btn').addEventListener('click', ()=>{

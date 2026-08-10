@@ -56,29 +56,22 @@ function serve(){
   const firstMenu = await page.$eval('.sidebar nav button', el => el.dataset.tab);
   assert(firstMenu === 'as', `사이드바 첫 메뉴 = AS 접수 (실제 ${firstMenu})`);
 
-  // ---- 처리 현황판은 사이드바에서 들어가서 확인 ----
-  await page.click('.sidebar nav button[data-tab="board"]');
-  await page.waitForTimeout(400);
-  assert(await page.isVisible('#view-board.active'), '사이드바에서 처리 현황판 진입');
-  assert(await page.isVisible('#board-hq'), '본사 제품 단계 보드 표시');
-  assert(await page.isVisible('#board-other'), '타사 제품 단계 보드 표시');
-  assert(await page.isVisible('#board-pr'), '상품 예약 단계 보드 표시');
-  const hqCols = await page.$$eval('#board-hq .bcol', els => els.length);
-  assert(hqCols === 2, `본사 제품 보드 칸 2개 (실제 ${hqCols})`);
-  const otherCols = await page.$$eval('#board-other .bcol', els => els.length);
-  assert(otherCols === 6, `타사 제품 보드 칸 6개 (실제 ${otherCols})`);
-  const prCols = await page.$$eval('#board-pr .bcol', els => els.length);
-  assert(prCols === 5, `상품 예약 보드 칸 5개 (실제 ${prCols})`);
-  const kpiCount = await page.$$eval('#board-kpi .k', els => els.length);
-  assert(kpiCount === 4, `현황판 요약 카드 4개 (실제 ${kpiCount})`);
+  // ---- 각 탭 상단의 단계 스트립 ----
+  assert(await page.isVisible('#as-stage-strip'), 'AS 탭 상단에 단계 스트립 표시');
+  const asStrips = await page.$$eval('#as-stage-strip .stage-strip', els => els.length);
+  assert(asStrips === 2, `AS 전체 탭에서 본사·타사 스트립 2개 (실제 ${asStrips})`);
+  const asHead = await page.textContent('#as-stage-strip');
+  assert(asHead.includes('본사 제품') && asHead.includes('타사 제품'), 'AS 스트립에 본사/타사 구분 표시');
+  assert(!asHead.includes('문의접수'), 'AS 탭에는 예약 단계가 섞여 나오지 않음');
 
-  // ---- 보는 범위(매장) 드롭다운 ----
-  const scopeOpts = await page.$$eval('#board-scope-select option', els => els.map(e => e.value));
-  assert(scopeOpts[0] === 'all' && scopeOpts.length === 3, `범위 선택에 전체 매장 + 매장 2곳 (실제 ${scopeOpts.length}개)`);
-  await page.selectOption('#board-scope-select', '2');
+  await page.click('.sidebar nav button[data-tab="product"]');
   await page.waitForTimeout(300);
-  assert((await page.textContent('#board-scope-name')).trim() === '로데오점', '범위를 로데오점으로 바꾸면 현황판 라벨 갱신');
-  assert((await page.textContent('#as-current-store-name')).trim() === '로데오점', 'AS 화면 범위 라벨도 같이 갱신');
+  assert(await page.isVisible('#pr-stage-strip'), '상품 예약 탭 상단에 단계 스트립 표시');
+  const prHead = await page.textContent('#pr-stage-strip');
+  assert(prHead.includes('문의접수') && prHead.includes('구매완료'), '예약 스트립에 예약 단계 표시');
+  assert(!prHead.includes('ERP 기입'), '예약 탭에는 AS 단계가 섞여 나오지 않음');
+  const prStrips = await page.$$eval('#pr-stage-strip .stage-strip', els => els.length);
+  assert(prStrips === 1, `예약 스트립은 1개 (실제 ${prStrips})`);
 
   // ---- Go to AS tab ----
   await page.click('.sidebar nav button[data-tab="as"]');
@@ -262,55 +255,46 @@ function serve(){
   const prRangeVisible = await page.$eval('#pr-stat-custom-range', el => getComputedStyle(el).display !== 'none');
   assert(prRangeVisible, '예약 통계에서도 "기간 직접 설정" 선택 시 날짜 입력칸 노출');
 
-  // ================= 현황판 ↔ 목록 연결 확인 =================
-  await page.click('.sidebar nav button[data-tab="board"]');
+  // ================= 단계 스트립 ↔ 목록 연결 확인 =================
+  await page.click('.sidebar nav button[data-tab="as"]');
+  await page.waitForTimeout(300);
+  await page.selectOption('#as-scope-select', 'all');
   await page.waitForTimeout(400);
-  assert(await page.isVisible('#view-board.active'), '사이드바에서 처리 현황판으로 복귀');
+  await page.click('#as-category-tabs button[data-cat="other"]');
+  await page.waitForTimeout(300);
+  const otherStrips = await page.$$eval('#as-stage-strip .stage-strip', els => els.length);
+  assert(otherStrips === 1, `타사 탭 선택 시 스트립 1개만 표시 (실제 ${otherStrips})`);
 
-  // 전체 매장 범위로 바꾸면 앞서 등록한 건들이 모두 보드에 잡혀야 함
-  await page.selectOption('#board-scope-select', 'all');
+  const beforeRows = await page.$$eval('#as-list .row', els => els.length);
+  // 건수가 1 이상인 단계 타일을 눌러 목록이 좁혀지는지 확인
+  const tiles = await page.$$('#as-stage-strip .stage-tile');
+  let clicked = false;
+  for(const t of tiles){
+    const txt = await t.textContent();
+    if(txt.includes('전체')) continue;
+    const n = parseInt(txt.trim(), 10);
+    if(n >= 1){ await t.click(); clicked = true; break; }
+  }
+  assert(clicked, '건수가 있는 단계 타일 클릭');
   await page.waitForTimeout(400);
-  assert((await page.textContent('#board-scope-name')).trim() === '전체 매장', '범위를 전체 매장으로 전환');
-  const otherTot = await page.textContent('#other-tot');
-  assert(/[1-9]/.test(otherTot), `타사 제품 보드 합계에 건수 표시 (실제 ${otherTot})`);
+  assert((await page.$$eval('#as-stage-strip .stage-tile.on', els => els.length)) === 1, '선택한 단계 타일이 강조 표시됨');
+  const afterRows = await page.$$eval('#as-list .row', els => els.length);
+  assert(afterRows >= 1 && afterRows <= beforeRows, `단계 타일 클릭 시 목록이 그 단계로 좁혀짐 (${beforeRows} → ${afterRows})`);
 
-  // 타사 보드에서 실제 건이 있는 칸을 눌러 그 단계 목록으로 진입
-  const targetCol = await page.$('#board-other .bcol:has(.bcard)');
-  assert(!!targetCol, '타사 보드에 카드가 있는 칸 존재');
-  await targetCol.click();
-  await page.waitForTimeout(500);
-  assert(await page.isVisible('#view-as.active'), '보드 칸 클릭 → AS 접수 화면으로 이동');
-  assert(await page.isVisible('#as-stage-banner.on'), '단계만 보는 중임을 알리는 안내 배너 표시');
-  const bannerTxt = await page.textContent('#as-stage-banner');
-  assert(bannerTxt.includes('단계만 보는 중'), '배너에 단계 필터 안내 문구 표시');
-  const stagedRows = await page.$$eval('#as-list .row', els => els.length);
-  assert(stagedRows >= 1, `단계 필터 적용된 목록에 항목 표시 (실제 ${stagedRows}건)`);
-
-  // 배너의 해제 버튼으로 전체 보기 복귀
-  await page.click('#as-stage-banner button');
+  // '전체' 타일로 복귀
+  await page.click('#as-stage-strip .stage-tile:has-text("전체")');
   await page.waitForTimeout(400);
-  assert(!(await page.isVisible('#as-stage-banner.on')), '단계 해제 시 배너 사라짐');
-  const allRows = await page.$$eval('#as-list .row', els => els.length);
-  assert(allRows >= stagedRows, `단계 해제 후 목록이 더 넓어짐 (${stagedRows} → ${allRows})`);
-
-  // 전체 매장 범위에서는 목록 각 줄에 매장명이 굵게 표시됨
-  const asListHtml = await page.innerHTML('#as-list');
-  assert(asListHtml.includes('<b>'), '전체 매장 범위일 때 목록에 매장명 강조 표시');
-
-  // 예약 보드 칸 클릭 → 상품 예약 화면 + 상태 필터 적용
-  await page.click('.sidebar nav button[data-tab="board"]');
-  await page.waitForTimeout(350);
-  await page.click('#board-pr .bcol');
-  await page.waitForTimeout(400);
-  assert(await page.isVisible('#view-product.active'), '예약 보드 칸 클릭 → 상품 예약 화면으로 이동');
-  assert((await page.$eval('#pr-status-filter', el => el.value)) === 'requested', '예약 상태 필터가 그 단계로 지정됨');
+  const backRows = await page.$$eval('#as-list .row', els => els.length);
+  assert(backRows === beforeRows, `'전체' 타일로 되돌리면 목록 복구 (${backRows})`);
+  await page.click('#as-category-tabs button[data-cat="all"]');
+  await page.waitForTimeout(300);
 
   // ================= 상태 변경이 전 직원에게 열려 있는지 확인 =================
   // (신재현 = 일반 직원 권한. 예전에는 실장만 예약 상태를 바꿀 수 있어 '문의접수'에서 멈췄음)
   await page.click('.sidebar nav button[data-tab="product"]');
   await page.waitForTimeout(250);
-  await page.selectOption('#pr-status-filter', 'all');   // 앞 단계에서 보드로 걸어둔 상태 필터 해제
-  await page.waitForTimeout(200);
+  await page.click('#pr-stage-strip .stage-tile:has-text("전체")');  // 단계 필터 해제
+  await page.waitForTimeout(300);
   await page.click('#pr-new-btn');
   await page.waitForTimeout(200);
   await page.fill('#f-product', '테스트 상품 A');
