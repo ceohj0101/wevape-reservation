@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>위베이프 고객 예약 관리</title>
+<title>예약 및 AS 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
@@ -235,6 +235,19 @@
   .install-btn:hover{background:var(--yellow);}
   .install-btn.show{display:block;}
 
+  /* ---------- 월 바 (접수 화면 상단) ----------
+     기본은 이번 달만 보고, 지난달 이전에 아직 안 끝난 건은 옆 버튼으로 바로 들어갑니다. */
+  .month-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .month-bar select{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:8px 13px;
+    font-size:13px;font-weight:800;font-family:inherit;outline:none;cursor:pointer;}
+  .month-bar select:focus{border-color:var(--yellow-dark);}
+  .backlog-btn{border:1.5px solid #f6b9bb;background:#fdeaea;color:var(--red);border-radius:20px;padding:8px 14px;
+    font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .backlog-btn:hover{background:#fbdcdd;}
+  .backlog-btn.on{background:var(--red);color:#fff;border-color:var(--red);}
+  .backlog-btn.none{border-color:var(--border);background:#f2f1ed;color:var(--gray);cursor:default;}
+  .month-bar .mb-hint{font-size:11.5px;color:var(--gray);}
+
   .stage-strip{background:#fff;border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:10px;}
   .stage-strip .ss-head{display:flex;align-items:baseline;gap:8px;margin-bottom:9px;}
   .stage-strip .ss-head b{font-size:12.5px;font-weight:800;}
@@ -273,14 +286,14 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="예약관리">
+  <meta name="apple-mobile-web-app-title" content="예약·AS">
 </head>
 <body>
 
 <!-- ================= 로그인 화면 ================= -->
 <div id="login-screen">
   <div class="login-box">
-    <h1>위베이프 예약관리</h1>
+    <h1>예약 및 AS 관리</h1>
     <p>이름을 고르고 PIN 4자리를 입력하세요</p>
 
     <label>직원 이름</label>
@@ -305,7 +318,7 @@
   <div class="app-shell">
     <div class="drawer-overlay" id="drawer-overlay"></div>
     <div class="sidebar" id="sidebar">
-      <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+      <div class="brand"><span class="dot"></span>예약 및 AS 관리</div>
       <nav>
         <button data-tab="product" class="active" data-title="상품 예약">상품 예약 접수</button>
         <button data-tab="prstats" data-title="예약 통계">예약 통계</button>
@@ -329,6 +342,7 @@
           <button data-type="unstocked">미취급 상품</button>
           <button data-type="out_of_stock">품절 상품</button>
         </div>
+        <div id="pr-month-bar" class="month-bar"></div>
         <div id="pr-stage-strip"></div>
         <div class="toolbar">
           <div class="filters">
@@ -364,6 +378,7 @@
           <button data-cat="hq">본사 제품</button>
           <button data-cat="other">타사 제품</button>
         </div>
+        <div id="as-month-bar" class="month-bar"></div>
         <div id="as-stage-strip"></div>
         <div class="toolbar">
           <div class="filters">
@@ -870,15 +885,76 @@ function stageTile(label, sub, count, active, opts){
   </button>`;
 }
 
+/* ---------- 월 바 (이번 달 기본 + 지난달 이전 미완료 바로가기) ----------
+   접수 화면은 기본이 "이번 달"입니다. 지난 달 이전에 접수됐는데 아직 안 끝난 건은
+   달을 하나하나 뒤질 필요 없이 옆의 빨간 버튼 하나로 모아서 볼 수 있습니다. */
+let AS_MONTH_FILTER = 'this';   // 'this' | 'YYYY-MM' | 'all' | 'backlog'
+let PR_MONTH_FILTER = 'this';
+
+function thisMonthKey(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function rowMonthKey(r, kind){
+  const raw = kind==='as' ? (r.received_date || r.created_at) : r.created_at;
+  if(!raw) return null;
+  const m = String(raw).match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}` : null;
+}
+function isRowDone(r, kind){
+  return kind==='as' ? isAsDone(r) : (r.status==='purchased' || r.status==='rejected' || r.status==='abandoned');
+}
+/* 지난달 이전 접수인데 아직 완료되지 않은 건 */
+function isBacklog(r, kind){
+  const mk = rowMonthKey(r, kind);
+  return !!mk && mk < thisMonthKey() && !isRowDone(r, kind);
+}
+function matchMonth(r, kind, filter){
+  if(filter === 'all') return true;
+  if(filter === 'backlog') return isBacklog(r, kind);
+  const want = filter === 'this' ? thisMonthKey() : filter;
+  return rowMonthKey(r, kind) === want;
+}
+function monthLabel(mk){
+  const [y,m] = mk.split('-');
+  return `${y}년 ${Number(m)}월`;
+}
+function renderMonthBar(kind){
+  const isAs = kind==='as';
+  const el = document.getElementById(isAs ? 'as-month-bar' : 'pr-month-bar');
+  const rows = isAs ? (AS_ITEMS_RAW||[]) : (PR_ITEMS_RAW||[]);
+  if(!el) return;
+  const cur = isAs ? AS_MONTH_FILTER : PR_MONTH_FILTER;
+  const tm = thisMonthKey();
+  // 실제 데이터에 있는 월 + 이번 달
+  const months = Array.from(new Set(rows.map(r=>rowMonthKey(r,kind)).filter(Boolean).concat([tm]))).sort().reverse();
+  const opts = [`<option value="this" ${cur==='this'?'selected':''}>이번 달 (${monthLabel(tm)})</option>`]
+    .concat(months.filter(m=>m!==tm).map(m=>`<option value="${m}" ${cur===m?'selected':''}>${monthLabel(m)}</option>`))
+    .concat([`<option value="all" ${cur==='all'?'selected':''}>전체 기간</option>`]).join('');
+  const backlog = rows.filter(r=>isBacklog(r,kind)).length;
+  const setter = isAs ? 'setAsMonth' : 'setPrMonth';
+  const shown = rows.filter(r=>matchMonth(r,kind,cur)).length;
+  el.innerHTML = `
+    <select onchange="${setter}(this.value)">${opts}</select>
+    <button class="backlog-btn ${cur==='backlog'?'on':''} ${backlog===0?'none':''}"
+      onclick="${backlog===0?'':`${setter}('backlog')`}">
+      ⚠ 지난달 이전 미완료 ${backlog}건${cur==='backlog'?' — 보는 중':''}
+    </button>
+    <span class="mb-hint">${cur==='backlog' ? '완료되지 않은 지난 건만 모아서 보고 있습니다' : `${shown}건 표시 중`}</span>`;
+}
+function setAsMonth(v){ AS_MONTH_FILTER = v; AS_STAGE_FILTER = null; applyAsFilters(true); }
+function setPrMonth(v){ PR_MONTH_FILTER = v; document.getElementById('pr-status-filter').value='all'; refreshProductList(); }
+
 /* ---------- AS 단계 스트립 ---------- */
 function renderAsStrip(){
   const el = document.getElementById('as-stage-strip');
   if(!el || !AS_ITEMS_RAW) return;
+  const scoped = AS_ITEMS_RAW.filter(r=>matchMonth(r,'as',AS_MONTH_FILTER));
   const cats = AS_CATEGORY_FILTER==='all' ? ['hq','other'] : [AS_CATEGORY_FILTER];
   const CAT_NAME = { hq:'본사 제품', other:'타사 제품' };
   let html = '';
   cats.forEach(cat=>{
-    const rows = AS_ITEMS_RAW.filter(r=>(r.category||'hq')===cat);
+    const rows = scoped.filter(r=>(r.category||'hq')===cat);
     const flow = STATUS_FLOW_AS[cat];
     const allActive = !AS_STAGE_FILTER;
     let tiles = stageTile('전체', '', rows.length, allActive, {onclick:`setAsStage(null)`});
@@ -905,7 +981,8 @@ function renderPrStrip(){
   const el = document.getElementById('pr-stage-strip');
   if(!el || !PR_ITEMS_RAW) return;
   const cur = document.getElementById('pr-status-filter').value;
-  const rows = PR_TYPE_FILTER==='all' ? PR_ITEMS_RAW : PR_ITEMS_RAW.filter(r=>r.request_type===PR_TYPE_FILTER);
+  const scoped = PR_ITEMS_RAW.filter(r=>matchMonth(r,'pr',PR_MONTH_FILTER));
+  const rows = PR_TYPE_FILTER==='all' ? scoped : scoped.filter(r=>r.request_type===PR_TYPE_FILTER);
   let tiles = stageTile('전체','', rows.length, cur==='all', {onclick:`setPrStage('all')`});
   PR_FLOW.forEach(st=>{
     const items = rows.filter(r=>r.status===st.code);
@@ -1132,6 +1209,7 @@ async function fetchProductRequests(){
 }
 function filterPrItems(items){
   const statusF = document.getElementById('pr-status-filter').value;
+  items = items.filter(r=>matchMonth(r,'pr',PR_MONTH_FILTER));
   return items.filter(r=>{
     if(PR_TYPE_FILTER !== 'all' && r.request_type !== PR_TYPE_FILTER) return false;
     if(statusF && statusF !== 'all' && r.status !== statusF) return false;
@@ -1217,6 +1295,7 @@ function renderProductList(resetSelection){
 async function refreshProductList(){
   PR_ITEMS_RAW = await fetchProductRequests();
   PR_ITEMS = filterPrItems(PR_ITEMS_RAW);
+  renderMonthBar('pr');
   renderPrStrip();
   renderProductList(true);
   renderProductDetail();
@@ -1402,6 +1481,7 @@ function asProductLabel(r){
 }
 function filterAsItems(items){
   const statusF = document.getElementById('as-status-filter').value;
+  items = items.filter(r=>matchMonth(r,'as',AS_MONTH_FILTER));
   const qF = document.getElementById('as-q-filter').value.trim().toLowerCase();
   return items.filter(r=>{
     if(AS_CATEGORY_FILTER !== 'all' && (r.category||'hq') !== AS_CATEGORY_FILTER) return false;
@@ -1509,6 +1589,7 @@ function renderAsList(resetSelection){
   list.innerHTML = AS_ITEMS.map(asRowHtml).join('');
 }
 function applyAsFilters(resetSelection){
+  renderMonthBar('as');
   renderAsStrip();
   AS_ITEMS = filterAsItems(AS_ITEMS_RAW);
   renderAsList(resetSelection);

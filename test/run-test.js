@@ -57,6 +57,24 @@ function serve(){
   assert(JSON.stringify(menuOrder) === JSON.stringify(['product','prstats','as','asstats','settings']),
     `메뉴 순서 = 예약접수·예약통계·AS접수·AS통계·설정 (실제 ${menuOrder.join(',')})`);
   assert(await page.isVisible('#install-btn'), '사이드바에 "바탕화면에 설치" 버튼 노출');
+  assert((await page.textContent('.sidebar .brand')).includes('예약 및 AS 관리'), '앱 이름이 "예약 및 AS 관리"로 표시');
+
+  // ---- 월 바: 이번 달이 기본 + 지난달 이전 미완료 바로가기 ----
+  assert(await page.isVisible('#pr-month-bar select'), '예약 화면에 월 선택 표시');
+  const prMonthVal = await page.$eval('#pr-month-bar select', el => el.value);
+  assert(prMonthVal === 'this', `예약 월 기본값 = 이번 달 (실제 ${prMonthVal})`);
+  assert((await page.textContent('#pr-month-bar')).includes('지난달 이전 미완료'), '예약 화면에 지난달 미완료 버튼 표시');
+
+  await page.click('.sidebar nav button[data-tab="as"]');
+  await page.waitForTimeout(300);
+  assert(await page.isVisible('#as-month-bar select'), 'AS 화면에 월 선택 표시');
+  const asMonthVal = await page.$eval('#as-month-bar select', el => el.value);
+  assert(asMonthVal === 'this', `AS 월 기본값 = 이번 달 (실제 ${asMonthVal})`);
+  await page.selectOption('#as-month-bar select', 'all');
+  await page.waitForTimeout(350);
+  assert((await page.$eval('#as-month-bar select', el=>el.value)) === 'all', 'AS 월을 전체 기간으로 변경 가능');
+  await page.click('.sidebar nav button[data-tab="product"]');
+  await page.waitForTimeout(300);
 
   // 통계 기간 필터는 전체기간 / 직접설정 두 가지만
   await page.click('.sidebar nav button[data-tab="asstats"]');

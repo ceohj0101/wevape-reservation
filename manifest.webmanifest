@@ -1,7 +1,7 @@
 {
-  "name": "위베이프 예약관리",
-  "short_name": "예약관리",
-  "description": "위베이프 상품 예약 · AS 접수 관리",
+  "name": "예약 및 AS 관리",
+  "short_name": "예약·AS",
+  "description": "상품 예약 · AS 접수 관리",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
