@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 B — 단계 보드 (어디서 막혀있는지 한눈에)</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --yellow-soft:#FFF8DE;
+    --black:#111111; --white:#ffffff; --bg:#F5F5F3; --border:#E8E6E0;
+    --gray:#8A8A90; --gray-dark:#5A5A60; --red:#E5484D; --red-soft:#FDEAEA;
+    --blue:#2F6FE5; --blue-soft:#EEF4FF; --green:#2F9E58; --green-soft:#E8F6ED;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;padding-bottom:50px;}
+  .badge-fix{position:fixed;top:12px;left:12px;background:var(--black);color:#fff;font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;z-index:200;}
+  .badge-sub{position:fixed;top:12px;left:112px;background:#fff;color:#555;font-size:11px;font-weight:600;padding:6px 12px;border-radius:20px;z-index:200;border:1px solid var(--border);}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:64px 22px 40px;}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+  .topbar .brand{font-size:13.5px;font-weight:800;}
+  .topbar .brand .dot{display:inline-block;width:7px;height:7px;background:var(--yellow);border-radius:50%;margin-right:6px;vertical-align:1px;}
+  .topbar .out{border:none;background:none;color:var(--gray);font-size:12.5px;font-weight:700;cursor:pointer;}
+
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px;}
+  .head h1{font-size:24px;font-weight:800;margin:0 0 5px;letter-spacing:-.5px;}
+  .head .sub{font-size:12.5px;color:var(--gray);font-weight:600;}
+  .new-btns{display:flex;gap:8px;}
+  .new-btn{border:none;border-radius:20px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .new-btn.as{background:var(--black);color:#fff;}
+  .new-btn.pr{background:var(--yellow);color:#3A2C00;}
+
+  .scope{display:flex;gap:7px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+  .chip{border:1.5px solid var(--border);background:var(--white);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:700;color:var(--gray-dark);cursor:pointer;white-space:nowrap;}
+  .chip.active{background:var(--black);color:#fff;border-color:var(--black);}
+  .chip.store.active{background:var(--yellow);color:#3A2C00;border-color:var(--yellow-dark);}
+  .chip-sep{width:1px;height:20px;background:var(--border);margin:0 3px;}
+
+  /* ---- AS 단계 보드 ---- */
+  .board-title{display:flex;align-items:center;gap:9px;margin:0 0 12px;}
+  .board-title .dot{width:9px;height:9px;border-radius:50%;background:var(--red);}
+  .board-title h2{font-size:16px;font-weight:800;margin:0;letter-spacing:-.2px;}
+  .board-title .tot{font-size:11.5px;font-weight:800;color:var(--gray);background:var(--white);padding:3px 10px;border-radius:20px;}
+  .board-title .hint{font-size:11.5px;color:var(--gray);margin-left:auto;}
+
+  .board{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:34px;}
+  .col{background:rgba(255,255,255,.6);border-radius:18px;padding:12px;min-height:140px;}
+  .col.hot{background:var(--red-soft);}
+  .col-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;padding:0 3px;}
+  .col-head .cn{font-size:12px;font-weight:800;letter-spacing:-.2px;}
+  .col-head .cc{font-size:15px;font-weight:800;}
+  .col.hot .col-head .cc{color:var(--red);}
+  .col-sub{font-size:10.5px;color:var(--gray);font-weight:600;padding:0 3px;margin:-7px 0 10px;}
+
+  .card{background:var(--white);border-radius:13px;padding:11px 12px;margin-bottom:7px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s;}
+  .card:hover{transform:translateY(-2px);}
+  .card .p{font-size:12.5px;font-weight:700;line-height:1.35;margin-bottom:5px;}
+  .card .m{font-size:10.5px;color:var(--gray);font-weight:600;}
+  .card .foot{display:flex;justify-content:space-between;align-items:center;margin-top:7px;}
+  .card .st{font-size:10px;font-weight:800;color:#8A7300;background:var(--yellow-soft);padding:2px 7px;border-radius:20px;}
+  .card .dd{font-size:10px;font-weight:800;color:var(--gray);}
+  .card .dd.old{color:var(--red);}
+  .more{width:100%;border:1px dashed var(--border);background:none;border-radius:11px;padding:9px;font-size:11px;font-weight:700;color:var(--gray);cursor:pointer;font-family:inherit;}
+  .more:hover{border-color:var(--yellow-dark);color:var(--black);}
+  .col-empty{text-align:center;color:#BEBCB6;font-size:11.5px;padding:22px 0;}
+
+  /* ---- 예약 섹션 ---- */
+  .pr-title .dot{background:var(--blue);}
+  .pr-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .pr-box{background:var(--white);border-radius:18px;padding:16px 17px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05);border-left:3px solid var(--blue);}
+  .pr-box:hover{transform:translateY(-2px);}
+  .pr-box .n{font-size:23px;font-weight:800;line-height:1;}
+  .pr-box .n.zero{color:#C8C6C0;}
+  .pr-box .l{font-size:11px;color:var(--gray);font-weight:700;margin-top:6px;}
+  .pr-box .l b{color:var(--black);}
+
+  .note{font-size:11px;color:#AAA8A2;text-align:center;margin-top:30px;line-height:1.6;}
+
+  @media(max-width:980px){
+    .board{grid-template-columns:repeat(3,1fr);}
+    .pr-strip{grid-template-columns:repeat(2,1fr);}
+  }
+  @media(max-width:620px){
+    .wrap{padding:60px 14px 30px;}
+    .board{display:flex;overflow-x:auto;gap:11px;padding-bottom:8px;}
+    .col{flex:0 0 210px;}
+  }
+</style>
+</head>
+<body>
+<div class="badge-fix">시안 B</div>
+<div class="badge-sub">단계 보드 — 어느 단계에서 막혀있는지 바로 보임</div>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+    <button class="out">로그아웃</button>
+  </div>
+
+  <div class="head">
+    <div>
+      <h1>처리 현황판</h1>
+      <div class="sub">신재현 님 · 2026년 8월 10일 — 단계별로 몇 건이 걸려있는지 바로 확인하세요</div>
+    </div>
+    <div class="new-btns">
+      <button class="new-btn as">+ AS 접수</button>
+      <button class="new-btn pr">+ 상품 예약</button>
+    </div>
+  </div>
+
+  <div class="scope">
+    <div class="chip active" data-s="mine" onclick="setScope('mine')">내 매장</div>
+    <div class="chip" data-s="all" onclick="setScope('all')">전체 매장</div>
+    <div class="chip-sep"></div>
+    <div class="chip store" data-st="hq" onclick="setCat('hq')">본사 제품</div>
+    <div class="chip store" data-st="other" onclick="setCat('other')">타사 제품</div>
+  </div>
+
+  <div class="board-title">
+    <span class="dot"></span><h2>AS 접수</h2>
+    <span class="tot" id="as-tot">97건</span>
+    <span class="hint">카드를 누르면 그 건의 상세로 바로 들어갑니다</span>
+  </div>
+  <div class="board" id="board"></div>
+
+  <div class="board-title pr-title">
+    <span class="dot"></span><h2>상품 예약</h2>
+    <span class="tot">0건</span>
+    <span class="hint">미취급·품절 상품 문의 흐름</span>
+  </div>
+  <div class="pr-strip" id="pr-strip"></div>
+
+  <div class="note">
+    ※ 화면의 숫자는 실제 데이터 규모를 반영한 예시입니다.<br>
+    AS는 단계(접수 → 검사 → 재입고 → 전달)가 정해져 있어서, 어느 칸에 쌓여있는지가 곧 "지금 뭘 해야 하는지"입니다.
+  </div>
+</div>
+
+<script>
+const PRODUCTS = ['그래피티2 · 핑크','그래피티2 · 블랙','그래피티3 · 퍼플','롤리팟j · 핑크','크리에이터 · 배터리','쥬피터 · 칼피스','그래피티C · 배터리[블랙]','릴렉스 에이스'];
+const CUSTOMERS = ['김도윤','송준호','신소미','권도영','오은실','김동민','박서연','최민준'];
+const STAFF = ['조효정','정희경','장현진','김다정'];
+
+const STAGES = [
+  {key:'received', name:'접수', sub:'맡아둔 상태', n:34},
+  {key:'confirmed', name:'로데오점 확인', sub:'본점으로 넘어감', n:12},
+  {key:'sent_out', name:'제조사 검사중', sub:'회신 기다리는 중', n:38, hot:true},
+  {key:'restocked', name:'재입고 완료', sub:'지점으로 보낼 차례', n:9},
+  {key:'sent_branch', name:'고객 전달 대기', sub:'연락하면 끝', n:4},
+];
+
+function seeded(s){ return () => { s = (s*9301+49297)%233280; return s/233280; }; }
+const rnd = seeded(11);
+const pick = a => a[Math.floor(rnd()*a.length)];
+
+function makeCards(stage){
+  const show = Math.min(stage.n, 3);
+  const out = [];
+  for(let i=0;i<show;i++){
+    const days = Math.floor(rnd()*70)+1;
+    out.push({p:pick(PRODUCTS), c:pick(CUSTOMERS), s:pick(STAFF), days});
+  }
+  return out;
+}
+
+function renderBoard(){
+  document.getElementById('board').innerHTML = STAGES.map(st=>{
+    const cards = makeCards(st);
+    const rest = st.n - cards.length;
+    return `<div class="col ${st.hot?'hot':''}">
+      <div class="col-head"><span class="cn">${st.name}</span><span class="cc">${st.n}</span></div>
+      <div class="col-sub">${st.sub}</div>
+      ${st.n===0 ? '<div class="col-empty">비어 있음</div>' : cards.map(c=>`
+        <div class="card" onclick="alert('${c.p} · ${c.c} 고객 건 상세로 이동합니다')">
+          <div class="p">${c.p}</div>
+          <div class="m">${c.c} 고객 · 등록 ${c.s}</div>
+          <div class="foot"><span class="st">${st.name}</span><span class="dd ${c.days>30?'old':''}">${c.days}일째</span></div>
+        </div>`).join('')}
+      ${rest>0 ? `<button class="more" onclick="alert('${st.name} 단계 ${st.n}건 전체 목록을 봅니다')">+ ${rest}건 더보기</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+const PR_STAGES = [
+  {n:0, l:'<b>검토 대기</b><br>실장님 발주 판정 필요'},
+  {n:0, l:'<b>발주 가능</b><br>입고 기다리는 중'},
+  {n:0, l:'<b>입고 완료</b><br>고객에게 연락할 차례'},
+  {n:0, l:'<b>연락 완료</b><br>구매 여부 확인 중'},
+];
+function renderPr(){
+  document.getElementById('pr-strip').innerHTML = PR_STAGES.map(p=>`
+    <div class="pr-box" onclick="alert('상품 예약 목록으로 이동합니다')">
+      <div class="n ${p.n===0?'zero':''}">${p.n}</div>
+      <div class="l">${p.l}</div>
+    </div>`).join('');
+}
+
+function setScope(s){
+  document.querySelectorAll('.chip[data-s]').forEach(c=>c.classList.toggle('active', c.dataset.s===s));
+  document.getElementById('as-tot').textContent = s==='mine' ? '97건' : '324건';
+}
+function setCat(c){
+  const el = document.querySelector(`.chip[data-st="${c}"]`);
+  el.classList.toggle('active');
+}
+
+renderBoard();
+renderPr();
+</script>
+</body>
+</html>

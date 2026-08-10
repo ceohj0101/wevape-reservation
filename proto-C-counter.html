@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 C (전체 흐름) — 카운터 홈</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --yellow-soft:#FFF8DE;
+    --black:#111111; --white:#ffffff; --bg:#F5F5F3; --border:#E8E6E0;
+    --gray:#8A8A90; --gray-dark:#5A5A60; --red:#E5484D; --red-soft:#FDEAEA;
+    --blue:#2F6FE5; --blue-soft:#EEF4FF; --green:#2F9E58; --green-soft:#E8F6ED;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;}
+
+  .proto-bar{position:fixed;top:0;left:0;right:0;background:var(--black);color:#fff;z-index:300;padding:9px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .proto-bar .nm{font-size:11.5px;font-weight:800;background:var(--yellow);color:#3A2C00;padding:4px 11px;border-radius:20px;}
+  .proto-bar .ds{font-size:11.5px;opacity:.72;}
+  .flowmap{display:flex;align-items:center;gap:5px;margin-left:auto;flex-wrap:wrap;}
+  .flowmap button{border:1px solid rgba(255,255,255,.22);background:none;color:rgba(255,255,255,.6);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;cursor:pointer;font-family:inherit;}
+  .flowmap button.on{background:var(--yellow);color:#3A2C00;border-color:var(--yellow);}
+  .flowmap .ar{color:rgba(255,255,255,.3);font-size:10px;}
+
+  .screen{display:none;padding-top:52px;min-height:100vh;padding-bottom:80px;}
+  .screen.active{display:block;}
+  .wrap{max-width:680px;margin:0 auto;padding:20px 18px 30px;}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .topbar .who{font-size:12.5px;color:var(--gray);font-weight:700;}
+  .topbar .who b{color:var(--black);}
+  .store-pill{border:1.5px solid var(--yellow-dark);background:var(--yellow-soft);border-radius:20px;padding:7px 15px;font-size:12.5px;font-weight:800;color:#5C4600;cursor:pointer;font-family:inherit;}
+
+  /* ===== 검색이 주인공 ===== */
+  .hero h1{font-size:22px;font-weight:800;margin:0 0 14px;letter-spacing:-.5px;}
+  .sbox{position:relative;}
+  .sbox input{width:100%;border:2px solid var(--black);border-radius:18px;padding:19px 19px 19px 52px;font-size:16px;font-weight:600;font-family:inherit;background:var(--white);outline:none;}
+  .sbox input::placeholder{color:#B4B2AC;font-weight:500;}
+  .sbox input:focus{border-color:var(--yellow-dark);box-shadow:0 0 0 4px rgba(255,200,0,.18);}
+  .sbox .ico{position:absolute;left:19px;top:50%;transform:translateY(-50%);font-size:19px;opacity:.45;}
+  .stip{font-size:11.5px;color:var(--gray);margin-top:9px;padding-left:4px;}
+  .schips{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap;}
+  .schip{border:1.5px solid var(--border);background:var(--white);padding:6px 12px;border-radius:20px;font-size:11.5px;font-weight:700;color:var(--gray-dark);cursor:pointer;}
+  .schip:hover{border-color:var(--yellow-dark);color:var(--black);}
+
+  .results{margin-top:15px;}
+  .res-row{background:var(--white);border-radius:15px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:13px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05);border-left:3px solid transparent;}
+  .res-row:hover{transform:translateY(-2px);}
+  .res-row.as{border-left-color:var(--red);} .res-row.pr{border-left-color:var(--blue);}
+  .res-row .kind{font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;flex-shrink:0;}
+  .res-row.as .kind{background:var(--red-soft);color:var(--red);}
+  .res-row.pr .kind{background:var(--blue-soft);color:var(--blue);}
+  .res-row .info{flex:1;min-width:0;}
+  .res-row .info .n{font-size:14px;font-weight:800;}
+  .res-row .info .n small{font-weight:600;color:var(--gray);font-size:12px;}
+  .res-row .info .p{font-size:12px;color:var(--gray-dark);margin-top:3px;}
+  .res-row .info .m{font-size:11px;color:var(--gray);margin-top:3px;}
+  .res-row .stt{font-size:11px;font-weight:800;padding:5px 11px;border-radius:20px;flex-shrink:0;text-align:center;}
+  .res-row .stt.done{background:var(--green-soft);color:var(--green);}
+  .res-row .stt.wip{background:var(--yellow-soft);color:#8A7300;}
+  .res-none{background:var(--white);border-radius:15px;padding:24px;text-align:center;color:var(--gray);font-size:13px;line-height:1.7;}
+  .res-none b{color:var(--black);}
+  .res-none button{margin-top:12px;border:none;background:var(--black);color:#fff;border-radius:13px;padding:12px 20px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;}
+
+  .quick{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:26px 0 28px;}
+  .quick button{border:none;border-radius:18px;padding:19px;cursor:pointer;font-family:inherit;text-align:left;transition:transform .13s;}
+  .quick button:active{transform:scale(.97);}
+  .quick .as{background:var(--black);color:#fff;} .quick .pr{background:var(--yellow);color:#3A2C00;}
+  .quick button .t{font-size:15.5px;font-weight:800;display:block;}
+  .quick button .d{font-size:11px;font-weight:600;opacity:.6;margin-top:4px;display:block;}
+
+  .sec{font-size:12px;font-weight:800;color:var(--gray);margin:0 0 11px;}
+  .today{background:var(--white);border-radius:18px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:26px;overflow:hidden;}
+  .t-row{display:flex;align-items:center;gap:12px;padding:14px 17px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .t-row:last-child{border-bottom:none;} .t-row:hover{background:#FAFAF8;}
+  .t-row .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot.r{background:var(--red);} .dot.y{background:var(--yellow-dark);} .dot.b{background:var(--blue);} .dot.g{background:var(--green);}
+  .t-row .l{flex:1;font-size:13.5px;font-weight:700;}
+  .t-row .n{font-size:15px;font-weight:800;} .t-row .n.zero{color:#C8C6C0;}
+  .t-row .a{color:#C8C6C0;font-size:15px;}
+
+  .mine-list{background:var(--white);border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .m-row{display:flex;align-items:center;gap:12px;padding:13px 17px;border-bottom:1px solid var(--border);}
+  .m-row:last-child{border-bottom:none;}
+  .m-row .k{font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;flex-shrink:0;}
+  .m-row .k.as{background:var(--red-soft);color:var(--red);} .m-row .k.pr{background:var(--blue-soft);color:var(--blue);}
+  .m-row .txt{flex:1;min-width:0;}
+  .m-row .txt .t{font-size:13px;font-weight:700;} .m-row .txt .d{font-size:11px;color:var(--gray);margin-top:2px;}
+  .m-row .tm{font-size:11px;color:var(--gray);font-weight:700;}
+  .m-empty{padding:24px;text-align:center;color:var(--gray);font-size:12.5px;}
+
+  /* 목록/상세 공통 */
+  .navbar{display:flex;align-items:center;gap:11px;padding:14px 18px;max-width:680px;margin:0 auto;position:sticky;top:52px;background:rgba(245,245,243,.94);backdrop-filter:blur(12px);z-index:20;}
+  .navbar .back{border:none;background:none;font-size:20px;color:var(--gray-dark);cursor:pointer;padding:0;}
+  .navbar h2{font-size:17px;font-weight:800;margin:0;flex:1;}
+  .navbar .cnt{font-size:12px;font-weight:800;color:var(--gray);background:var(--white);padding:4px 11px;border-radius:20px;}
+  .filters{display:flex;gap:7px;overflow-x:auto;padding:0 18px 14px;max-width:680px;margin:0 auto;}
+  .chip{border:1.5px solid var(--border);background:var(--white);padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:700;color:var(--gray-dark);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+  .chip.on{background:var(--black);color:#fff;border-color:var(--black);}
+
+  .d-card{background:var(--white);border-radius:20px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:13px;}
+  .d-head .p{font-size:19px;font-weight:800;letter-spacing:-.4px;}
+  .d-head .m{font-size:12.5px;color:var(--gray);margin-top:6px;}
+  .callbar{background:var(--green-soft);border:1.5px solid var(--green);border-radius:15px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:13px;}
+  .callbar .em{font-size:19px;}
+  .callbar .tx{flex:1;font-size:13px;font-weight:700;color:#1D6B3C;}
+  .callbar .tx span{display:block;font-size:11.5px;font-weight:600;opacity:.75;margin-top:2px;}
+  .callbar button{border:none;background:var(--green);color:#fff;border-radius:20px;padding:9px 16px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .pipe{margin:22px 0 4px;}
+  .pipe-labels{display:flex;justify-content:space-between;margin-bottom:9px;}
+  .pipe-labels span{font-size:9.5px;color:var(--gray);font-weight:700;text-align:center;flex:1;line-height:1.3;}
+  .pipe-labels span.cur{color:var(--black);font-weight:800;}
+  .pipe-track{display:flex;align-items:center;}
+  .node{width:13px;height:13px;border-radius:50%;background:var(--border);flex-shrink:0;}
+  .node.done{background:var(--yellow-dark);}
+  .node.cur{background:var(--yellow);box-shadow:0 0 0 4px rgba(255,200,0,.28);}
+  .line{flex:1;height:2px;background:var(--border);} .line.done{background:var(--yellow-dark);}
+  .kv{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--gray);font-weight:600;} .kv .v{font-weight:700;text-align:right;}
+  .d-actions{display:flex;gap:9px;flex-wrap:wrap;}
+  .btn{border:none;border-radius:14px;padding:14px 20px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;}
+  .btn.main{background:var(--yellow);color:#3A2C00;flex:1;}
+  .btn.ghost{background:var(--white);color:var(--gray-dark);border:1.5px solid var(--border);}
+  .btn.dark{background:var(--black);color:#fff;flex:1;}
+
+  /* 시트 공통 */
+  .sheet-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:450;align-items:flex-end;justify-content:center;}
+  .sheet-bg.open{display:flex;}
+  .sheet{background:var(--white);border-radius:26px 26px 0 0;width:100%;max-width:680px;max-height:88vh;overflow-y:auto;padding:8px 0 26px;}
+  .sheet .grip{width:38px;height:4px;background:var(--border);border-radius:4px;margin:8px auto 16px;}
+  .sheet .sh{padding:0 20px 14px;}
+  .sheet .sh h3{font-size:19px;font-weight:800;margin:0 0 4px;}
+  .sheet .sh p{font-size:12.5px;color:var(--gray);margin:0;}
+  .sheet .pad{padding:0 20px;}
+  .pgroup{font-size:11px;font-weight:800;color:var(--gray);padding:12px 20px 7px;}
+  .prow{display:flex;align-items:center;gap:13px;padding:14px 20px;cursor:pointer;border-bottom:1px solid var(--border);}
+  .prow:hover{background:#FAFAF8;} .prow.sel{background:var(--yellow-soft);}
+  .prow .avt{width:38px;height:38px;border-radius:12px;background:#F1F0EC;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--gray-dark);flex-shrink:0;}
+  .prow.sel .avt{background:var(--yellow);color:#3A2C00;}
+  .prow .pinfo{flex:1;min-width:0;}
+  .prow .pinfo .pn{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:6px;}
+  .prow .pinfo .pn .mytag{font-size:9.5px;font-weight:800;color:#8A7300;background:var(--yellow-soft);border:1px solid var(--yellow-dark);padding:1px 7px;border-radius:20px;}
+  .prow .pinfo .pd{font-size:11.5px;color:var(--gray);margin-top:3px;}
+  .prow .pinfo .pd .warn{color:var(--red);font-weight:800;}
+  .prow .pright{display:flex;align-items:center;gap:10px;}
+  .prow .pnum{text-align:right;}
+  .prow .pnum .a{font-size:16px;font-weight:800;line-height:1;} .prow .pnum .a.red{color:var(--red);}
+  .prow .pnum .b{font-size:10px;color:var(--gray);font-weight:700;margin-top:3px;}
+  .prow .check{font-size:17px;color:var(--yellow-dark);width:16px;}
+
+  .fld{margin-bottom:15px;}
+  .fld label{display:block;font-size:12px;font-weight:800;color:var(--gray-dark);margin-bottom:7px;}
+  .fld input,.fld select,.fld textarea{width:100%;border:1.5px solid var(--border);border-radius:13px;padding:14px;font-size:15px;font-family:inherit;font-weight:600;outline:none;}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--yellow-dark);box-shadow:0 0 0 3px rgba(255,200,0,.16);}
+  .fld textarea{min-height:70px;resize:vertical;}
+  .storebox{background:var(--yellow-soft);border:1.5px solid var(--yellow-dark);border-radius:14px;padding:13px 14px;margin-bottom:16px;}
+  .storebox label{color:#8A7300;} .storebox select{border-color:var(--yellow-dark);font-weight:800;}
+  .storebox .hint{font-size:11px;color:#8A7300;margin-top:6px;}
+  .seg{display:flex;background:#F1F0EC;border-radius:13px;padding:3px;margin-bottom:15px;}
+  .seg button{flex:1;border:none;background:none;padding:11px;border-radius:10px;font-size:13.5px;font-weight:800;color:var(--gray);cursor:pointer;font-family:inherit;}
+  .seg button.on{background:var(--white);color:var(--black);box-shadow:0 1px 3px rgba(0,0,0,.09);}
+  .sr-list{max-height:180px;overflow-y:auto;border:1.5px solid var(--border);border-radius:13px;margin:-8px 0 15px;}
+  .sr-item{padding:12px 14px;font-size:13.5px;font-weight:600;border-bottom:1px solid var(--border);cursor:pointer;}
+  .sr-item:last-child{border-bottom:none;} .sr-item:hover{background:var(--yellow-soft);}
+  .picked{background:var(--black);color:#fff;border-radius:13px;padding:13px 15px;font-size:14px;font-weight:800;margin-bottom:15px;display:flex;justify-content:space-between;}
+  .picked .x{cursor:pointer;opacity:.55;}
+
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;z-index:100;}
+  .tabbar .tb{flex:1;border:none;background:none;padding:11px 4px 13px;cursor:pointer;font-family:inherit;color:var(--gray);}
+  .tabbar .tb .i{font-size:19px;display:block;margin-bottom:3px;}
+  .tabbar .tb .l{font-size:10.5px;font-weight:800;}
+  .tabbar .tb.on{color:var(--black);}
+
+  .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--black);color:#fff;padding:12px 22px;border-radius:22px;font-size:13.5px;font-weight:700;z-index:500;display:none;}
+
+  @media(max-width:560px){ .quick{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span class="nm">시안 C</span>
+  <span class="ds">카운터 홈 — 손님 앞에서 찾고 바로 접수 · 검색이 주인공</span>
+  <div class="flowmap">
+    <button class="on" data-s="home" onclick="go('home')">홈</button><span class="ar">→</span>
+    <button data-s="picker" onclick="openPicker()">매장 선택</button><span class="ar">→</span>
+    <button data-s="list" onclick="go('list')">목록</button><span class="ar">→</span>
+    <button data-s="detail" onclick="go('detail')">상세</button><span class="ar">→</span>
+    <button data-s="modal" onclick="openModal()">접수</button>
+  </div>
+</div>
+
+<!-- ===== 홈 ===== -->
+<div class="screen active" id="s-home">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="who"><b>신재현</b> 님 · 8월 10일</div>
+      <button class="store-pill" id="store-pill" onclick="openPicker()">구월로데오 ▾</button>
+    </div>
+
+    <div class="hero">
+      <h1>어떤 손님이 오셨나요?</h1>
+      <div class="sbox">
+        <span class="ico">🔍</span>
+        <input id="q" placeholder="고객 이름, 연락처 뒷 4자리, 제품명" oninput="doSearch()" autocomplete="off">
+      </div>
+      <div class="stip">AS 접수 건과 상품 예약을 같이 찾아드려요</div>
+      <div class="schips">
+        <div class="schip" onclick="qq('김도윤')">김도윤</div>
+        <div class="schip" onclick="qq('5678')">5678</div>
+        <div class="schip" onclick="qq('그래피티')">그래피티</div>
+        <div class="schip" onclick="qq('없는이름')">못 찾는 경우</div>
+      </div>
+      <div class="results" id="results"></div>
+    </div>
+
+    <div class="quick">
+      <button class="as" onclick="openModal()">
+        <span class="t">🔧 AS 접수하기</span><span class="d">고장·불량 기기 맡아두기</span></button>
+      <button class="pr" onclick="toast('상품 예약 등록 화면이 열립니다')">
+        <span class="t">📦 상품 예약받기</span><span class="d">미취급·품절 상품 문의</span></button>
+    </div>
+
+    <div class="sec" id="today-label">우리 매장 오늘 상황</div>
+    <div class="today" id="today"></div>
+
+    <div class="sec">내가 오늘 등록한 건</div>
+    <div class="mine-list" id="mine-list"></div>
+  </div>
+</div>
+
+<!-- ===== 목록 ===== -->
+<div class="screen" id="s-list">
+  <div class="navbar">
+    <button class="back" onclick="go('home')">‹</button>
+    <h2 id="l-title">AS 접수</h2>
+    <span class="cnt" id="l-cnt">97건</span>
+  </div>
+  <div class="filters">
+    <div class="chip on" data-f="all" onclick="setF('all')">전체</div>
+    <div class="chip" data-f="contact" onclick="setF('contact')">연락 필요</div>
+    <div class="chip" data-f="today" onclick="setF('today')">오늘 접수</div>
+    <div class="chip" data-f="old" onclick="setF('old')">30일 이상</div>
+    <div class="chip" data-f="done" onclick="setF('done')">완료</div>
+  </div>
+  <div class="wrap" style="padding-top:2px;"><div id="l-body"></div></div>
+</div>
+
+<!-- ===== 상세 ===== -->
+<div class="screen" id="s-detail">
+  <div class="navbar"><button class="back" onclick="go('list')">‹</button><h2>접수 상세</h2></div>
+  <div class="wrap" style="padding-top:2px;"><div id="d-body"></div></div>
+</div>
+
+<!-- ===== 매장 선택 시트 ===== -->
+<div class="sheet-bg" id="picker-bg" onclick="if(event.target===this)closePicker()">
+  <div class="sheet">
+    <div class="grip"></div>
+    <div class="sh"><h3>어느 매장을 볼까요?</h3><p>고른 매장 기준으로 검색·목록·접수가 전부 바뀝니다</p></div>
+    <div class="pad" style="padding-bottom:14px;">
+      <input id="store-q" placeholder="매장 이름 검색" oninput="renderPicker()" autocomplete="off"
+        style="width:100%;border:1.5px solid var(--border);border-radius:14px;padding:13px 15px;font-size:14.5px;font-family:inherit;font-weight:600;outline:none;">
+    </div>
+    <div id="picker-body"></div>
+  </div>
+</div>
+
+<!-- ===== 접수 모달 ===== -->
+<div class="sheet-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="sheet">
+    <div class="grip"></div>
+    <div class="sh"><h3>AS 접수하기</h3><p>손님이 맡긴 기기를 등록합니다</p></div>
+    <div class="pad">
+      <div class="storebox">
+        <label>어느 매장 접수 건인가요?</label>
+        <select id="modal-store"></select>
+        <div class="hint">지금 보고 있는 매장이 기본으로 선택돼요</div>
+      </div>
+      <div class="seg">
+        <button class="on" onclick="segPick(this,'hq')">본사 제품</button>
+        <button onclick="segPick(this,'other')">타사 제품</button>
+      </div>
+      <div id="hq-area">
+        <div class="fld"><label>제품 찾기</label><input id="psearch" placeholder="제품명 입력 (예: 그래피티)" oninput="psearch()" autocomplete="off"></div>
+        <div id="sr-wrap"></div>
+        <div class="fld" id="reason-fld" style="display:none;"><label>불량 사유</label>
+          <select><option>인식·접촉 불량</option><option>충전 불량</option><option>전원 안 켜짐</option><option>누수</option></select></div>
+      </div>
+      <div id="other-area" style="display:none;">
+        <div class="fld"><label>제품명 (직접 입력)</label><input placeholder="예: 타사 브랜드 X 기기"></div>
+      </div>
+      <div class="fld"><label>고객 성함</label><input id="m-name" placeholder="홍길동"></div>
+      <div class="fld"><label>연락처</label><input placeholder="010-0000-0000 또는 뒷 4자리"></div>
+      <div class="fld"><label>증상 메모</label><textarea placeholder="손님이 말한 증상을 그대로"></textarea></div>
+      <div class="d-actions">
+        <button class="btn ghost" onclick="closeModal()">취소</button>
+        <button class="btn main" onclick="closeModal();toast('접수되었습니다 ✓')">접수 완료</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <button class="tb on" data-t="home" onclick="go('home')"><span class="i">🔍</span><span class="l">찾기</span></button>
+  <button class="tb" data-t="list" onclick="go('list')"><span class="i">🔧</span><span class="l">AS</span></button>
+  <button class="tb" onclick="toast('상품 예약 목록')"><span class="i">📦</span><span class="l">예약</span></button>
+  <button class="tb" onclick="toast('통계 화면')"><span class="i">📊</span><span class="l">통계</span></button>
+  <button class="tb" onclick="toast('설정 화면')"><span class="i">⚙️</span><span class="l">설정</span></button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORES=[
+  {n:'구월로데오',a:97,p:0,contact:2,today:1,old:61,mine:1},
+  {n:'논현',a:65,p:0,contact:1,today:0,old:44},
+  {n:'부천상동',a:50,p:0,contact:0,today:0,old:38},
+  {n:'연수',a:31,p:0,contact:1,today:0,old:19},
+  {n:'구월길병원',a:23,p:0,contact:0,today:0,old:14},
+  {n:'부천중동',a:23,p:0,contact:0,today:1,old:15},
+  {n:'인천공항',a:22,p:0,contact:1,today:0,old:12},
+  {n:'검단',a:9,p:0,contact:0,today:0,old:5},
+  {n:'을지로',a:5,p:0,contact:0,today:0,old:3},
+  {n:'계산',a:0,p:0,contact:0,today:0,old:0},
+];
+let SCOPE=STORES[0];
+
+const DATA=[
+  {id:1,kind:'as',name:'김도윤',phone:'5678',product:'그래피티C · 배터리[블랙]',stage:2,by:'조효정',days:12,store:'구월로데오',memo:'충전은 되는데 흡입이 간헐적으로 안 됨',tag:'all'},
+  {id:2,kind:'as',name:'권도영',phone:'7788',product:'롤리팟j · 핑크',stage:4,by:'조효정',days:8,store:'구월로데오',memo:'수리 완료 — 고객 연락 필요',tag:'contact'},
+  {id:3,kind:'pr',name:'박서연',phone:'4455',product:'RELX 파이 맥스 머스캣',stage:2,by:'정희경',days:2,store:'구월로데오',memo:'입고 완료 — 연락 대기',tag:'contact'},
+  {id:4,kind:'as',name:'오은실',phone:'9900',product:'그래피티2 · 그린',stage:0,by:'신재현',days:0,store:'구월로데오',memo:'전원이 간헐적으로 꺼짐',tag:'today'},
+  {id:5,kind:'as',name:'김동민',phone:'2233',product:'쥬피터 · 칼피스',stage:2,by:'정희경',days:22,store:'구월로데오',memo:'누수 발생',tag:'all'},
+  {id:6,kind:'as',name:'신소미',phone:'3344',product:'그래피티3 · 퍼플',stage:0,by:'조효정',days:101,store:'구월로데오',memo:'방전',tag:'old'},
+  {id:7,kind:'as',name:'송준호',phone:'1122',product:'그래피티2 · 블랙',stage:5,by:'조효정',days:100,store:'구월로데오',memo:'ERP 기입 완료',tag:'done'},
+  {id:8,kind:'as',name:'이현우',phone:'8899',product:'크리에이터 · 배터리',stage:0,by:'장현진',days:190,store:'구월로데오',memo:'방전',tag:'old'},
+];
+const AS_FLOW=['접수','로데오점 확인','제조사 검사중','재입고 완료','고객 전달 대기','수령 완료'];
+const PR_FLOW=['문의접수','발주가능','입고완료','연락완료','구매완료'];
+const PRODUCTS=['그래피티C · 배터리[블랙]','그래피티C · 배터리[미러]','그래피티2 · 핑크','그래피티2 · 블랙','그래피티2 · 그린','그래피티3 · 퍼플','롤리팟-J · 블루','롤리팟j · 핑크','쥬피터 · 칼피스','크리에이터 · 배터리'];
+
+let CURF='all', CURID=1;
+
+function go(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+  document.getElementById('s-'+s).classList.add('active');
+  document.querySelectorAll('.flowmap button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+  document.querySelectorAll('.tabbar .tb').forEach(b=>b.classList.toggle('on',(s==='home'&&b.dataset.t==='home')||(s!=='home'&&b.dataset.t==='list')));
+  if(s==='list') renderList();
+  if(s==='detail') renderDetail();
+  window.scrollTo(0,0);
+}
+function qq(v){ document.getElementById('q').value=v; doSearch(); }
+function doSearch(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  const box=document.getElementById('results');
+  if(!q){ box.innerHTML=''; return; }
+  const hits=DATA.filter(d=> d.name.toLowerCase().includes(q)||d.phone.includes(q)||d.product.toLowerCase().includes(q));
+  if(!hits.length){
+    box.innerHTML=`<div class="res-none">"<b>${q}</b>"로 찾은 접수 건이 없어요.<br>처음 오신 손님이면 바로 접수해주세요.
+      <br><button onclick="openModal()">🔧 AS 접수하기</button></div>`;
+    return;
+  }
+  box.innerHTML=hits.map(d=>{
+    const flow=d.kind==='as'?AS_FLOW:PR_FLOW;
+    const done=d.stage>=flow.length-1;
+    return `<div class="res-row ${d.kind}" onclick="CURID=${d.id};go('detail')">
+      <span class="kind">${d.kind==='as'?'AS':'예약'}</span>
+      <div class="info">
+        <div class="n">${d.name} <small>· ${d.phone}</small></div>
+        <div class="p">${d.product}</div>
+        <div class="m">${d.store} · ${d.days===0?'오늘':d.days+'일 전'} 접수 · 등록 ${d.by}</div>
+      </div>
+      <span class="stt ${done?'done':'wip'}">${done?'완료':flow[d.stage]}</span>
+    </div>`;
+  }).join('');
+}
+function renderHome(){
+  const s=SCOPE;
+  document.getElementById('store-pill').textContent=s.n+' ▾';
+  document.getElementById('today-label').textContent=`${s.n} 오늘 상황`;
+  const T=[
+    {c:'r',l:'고객에게 연락해야 하는 건',n:s.contact,f:'contact'},
+    {c:'y',l:'AS 처리중',n:s.a,f:'all'},
+    {c:'b',l:'상품 예약 대기',n:s.p,f:'all'},
+    {c:'g',l:'오늘 새로 접수됨',n:s.today,f:'today'},
+  ];
+  document.getElementById('today').innerHTML=T.map(t=>`
+    <div class="t-row" onclick="setF('${t.f}');go('list')">
+      <span class="dot ${t.c}"></span><span class="l">${t.l}</span>
+      <span class="n ${t.n===0?'zero':''}">${t.n}</span><span class="a">›</span></div>`).join('');
+  const MINE=s.mine?[
+    {kind:'as',t:'그래피티2 · 그린',d:'오은실 고객 · 현장교체',tm:'14:20'},
+    {kind:'pr',t:'RELX 파이 맥스 머스캣',d:'박서연 고객 · 미취급 상품',tm:'11:05'},
+  ]:[];
+  document.getElementById('mine-list').innerHTML=MINE.length?MINE.map(m=>`
+    <div class="m-row"><span class="k ${m.kind}">${m.kind==='as'?'AS':'예약'}</span>
+      <div class="txt"><div class="t">${m.t}</div><div class="d">${m.d}</div></div>
+      <span class="tm">${m.tm}</span></div>`).join('')
+    :'<div class="m-empty">오늘 등록한 건이 아직 없어요</div>';
+  document.getElementById('modal-store').innerHTML=STORES.map(x=>`<option ${x.n===s.n?'selected':''}>${x.n}</option>`).join('');
+}
+function setF(f){
+  CURF=f;
+  document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.toggle('on',c.dataset.f===f));
+  document.getElementById('l-title').textContent={all:'AS 접수',contact:'연락 필요',today:'오늘 접수',old:'30일 이상 묵은 건',done:'완료된 건'}[f];
+  renderList();
+}
+function renderList(){
+  const s=SCOPE;
+  const rows = CURF==='all'?DATA.filter(d=>d.stage<5):(CURF==='done'?DATA.filter(d=>d.stage>=5):DATA.filter(d=>d.tag===CURF));
+  const total = CURF==='all'?s.a:(CURF==='contact'?s.contact:(CURF==='today'?s.today:(CURF==='old'?s.old:rows.length)));
+  document.getElementById('l-cnt').textContent=total+'건';
+  document.getElementById('l-body').innerHTML=
+    `<div style="font-size:11.5px;color:var(--gray);font-weight:700;padding:0 2px 10px;">${s.n} 기준</div>`+
+    (rows.length?rows.map(d=>{
+      const flow=d.kind==='as'?AS_FLOW:PR_FLOW; const done=d.stage>=flow.length-1;
+      return `<div class="res-row ${d.kind}" onclick="CURID=${d.id};go('detail')" style="margin-bottom:9px;">
+        <span class="kind">${d.kind==='as'?'AS':'예약'}</span>
+        <div class="info"><div class="n">${d.name} <small>· ${d.phone}</small></div>
+          <div class="p">${d.product}</div>
+          <div class="m">${d.days===0?'오늘':d.days+'일째'} · 등록 ${d.by}</div></div>
+        <span class="stt ${done?'done':'wip'}">${done?'완료':flow[d.stage]}</span></div>`;
+    }).join('') : '<div style="text-align:center;padding:40px;color:var(--gray);font-size:13px;">해당하는 건이 없습니다</div>');
+}
+function renderDetail(){
+  const d=DATA.find(x=>x.id===CURID)||DATA[0];
+  const flow=d.kind==='as'?AS_FLOW:PR_FLOW;
+  const idx=Math.min(d.stage,flow.length-1);
+  let tr=''; flow.forEach((f,n)=>{ tr+=`<span class="node ${n<idx?'done':(n===idx?'cur':'')}"></span>`; if(n<flow.length-1) tr+=`<span class="line ${n<idx?'done':''}"></span>`; });
+  const needCall = d.tag==='contact';
+  document.getElementById('d-body').innerHTML=`
+    ${needCall?`<div class="callbar"><span class="em">📞</span>
+      <div class="tx">지금 고객에게 연락할 차례예요<span>${d.name} 고객 · ${d.phone}</span></div>
+      <button onclick="toast('연락 결과를 기록합니다')">연락함</button></div>`:''}
+    <div class="d-card">
+      <div class="d-head"><div class="p">${d.product}</div>
+        <div class="m">${d.kind==='as'?'AS 접수':'상품 예약'} · ${d.name} 고객 · ${d.days===0?'오늘':d.days+'일 전'} 접수</div></div>
+      <div class="pipe">
+        <div class="pipe-labels">${flow.map((f,n)=>`<span class="${n===idx?'cur':''}">${f}</span>`).join('')}</div>
+        <div class="pipe-track">${tr}</div></div>
+    </div>
+    <div class="d-card">
+      <div class="kv"><span class="k">접수 매장</span><span class="v">${d.store}</span></div>
+      <div class="kv"><span class="k">고객 성함</span><span class="v">${d.name}</span></div>
+      <div class="kv"><span class="k">연락처</span><span class="v">${d.phone} <span style="color:var(--gray);font-weight:600;font-size:11.5px;">(뒷 4자리)</span></span></div>
+      <div class="kv"><span class="k">등록한 직원</span><span class="v">${d.by}</span></div>
+      <div class="kv"><span class="k">증상 메모</span><span class="v">${d.memo}</span></div>
+      <div class="kv"><span class="k">경과</span><span class="v" style="color:${d.days>30?'var(--red)':'inherit'}">${d.days===0?'오늘 접수':d.days+'일째'}</span></div>
+    </div>
+    <div class="d-actions">
+      ${idx<flow.length-1?`<button class="btn main" onclick="toast('${flow[idx+1]} 처리했습니다 ✓')">${flow[idx+1]} 처리</button>`:`<button class="btn dark">완료됨</button>`}
+      <button class="btn ghost" onclick="toast('이전 단계로 되돌렸습니다')">← 되돌리기</button>
+      <button class="btn ghost" onclick="toast('사진 첨부')">📷</button>
+    </div>`;
+}
+/* 매장 선택 */
+function openPicker(){ document.getElementById('picker-bg').classList.add('open');
+  document.querySelectorAll('.flowmap button').forEach(b=>b.classList.toggle('on',b.dataset.s==='picker')); renderPicker(); }
+function closePicker(){ document.getElementById('picker-bg').classList.remove('open');
+  document.querySelectorAll('.flowmap button').forEach(b=>b.classList.remove('on'));
+  document.querySelector('.flowmap button[data-s="home"]').classList.add('on'); }
+function prow(s){
+  const sel=SCOPE.n===s.n, overdue=s.old>0;
+  return `<div class="prow ${sel?'sel':''}" onclick="pickStore('${s.n}')">
+    <div class="avt">${s.n.slice(0,1)}</div>
+    <div class="pinfo"><div class="pn">${s.n}${s.mine?'<span class="mytag">내 소속</span>':''}</div>
+      <div class="pd">${overdue?`<span class="warn">${s.old}건이 30일 넘게 밀림</span>`:(s.a?'정상 진행중':'처리할 건 없음')}</div></div>
+    <div class="pright">
+      <div class="pnum"><div class="a ${overdue?'red':''}">${s.a}</div><div class="b">AS</div></div>
+      <div class="pnum"><div class="a">${s.p}</div><div class="b">예약</div></div>
+      <div class="check">${sel?'✓':''}</div></div></div>`;
+}
+function renderPicker(){
+  const q=(document.getElementById('store-q').value||'').trim();
+  const list=q?STORES.filter(s=>s.n.includes(q)):STORES;
+  const mine=list.filter(s=>s.mine), others=list.filter(s=>!s.mine);
+  let h='';
+  if(mine.length) h+=`<div class="pgroup">내 소속 매장</div>`+mine.map(prow).join('');
+  if(others.length) h+=`<div class="pgroup">다른 매장 ${others.length}곳 · AS 많은 순</div>`+others.map(prow).join('');
+  if(!h) h=`<div style="padding:30px;text-align:center;color:var(--gray);font-size:13px;">"${q}"와 맞는 매장이 없어요</div>`;
+  document.getElementById('picker-body').innerHTML=h;
+}
+function pickStore(n){ SCOPE=STORES.find(s=>s.n===n); closePicker(); renderHome(); renderList(); toast(`${n} 기준으로 바꿨습니다`); window.scrollTo(0,0); }
+/* 모달 */
+function openModal(){ document.getElementById('modal-bg').classList.add('open');
+  document.querySelectorAll('.flowmap button').forEach(b=>b.classList.toggle('on',b.dataset.s==='modal'));
+  const q=document.getElementById('q').value.trim();
+  if(q && isNaN(q)) document.getElementById('m-name').value=q; }
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open');
+  document.querySelectorAll('.flowmap button').forEach(b=>b.classList.remove('on'));
+  document.querySelector('.flowmap button[data-s="home"]').classList.add('on'); }
+function segPick(el,k){ document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('on')); el.classList.add('on');
+  document.getElementById('hq-area').style.display=k==='hq'?'block':'none';
+  document.getElementById('other-area').style.display=k==='other'?'block':'none'; }
+function psearch(){
+  const q=document.getElementById('psearch').value.trim(); const w=document.getElementById('sr-wrap');
+  if(!q){w.innerHTML='';return;}
+  const h=PRODUCTS.filter(p=>p.includes(q));
+  w.innerHTML=h.length?`<div class="sr-list">${h.map(p=>`<div class="sr-item" onclick="pickP('${p}')">${p}</div>`).join('')}</div>`
+    :`<div class="sr-list"><div class="sr-item" style="color:var(--gray)">검색 결과 없음 — "타사 제품"으로 직접 입력하세요</div></div>`;
+}
+function pickP(p){ document.getElementById('sr-wrap').innerHTML=`<div class="picked">${p}<span class="x" onclick="unpick()">✕</span></div>`;
+  document.getElementById('psearch').value=''; document.getElementById('reason-fld').style.display='block'; }
+function unpick(){ document.getElementById('sr-wrap').innerHTML=''; document.getElementById('reason-fld').style.display='none'; }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; clearTimeout(window.__t); window.__t=setTimeout(()=>t.style.display='none',2000); }
+
+renderHome();
+renderList();
+</script>
+</body>
+</html>

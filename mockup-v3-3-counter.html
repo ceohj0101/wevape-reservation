@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 C — 카운터 홈 (손님 앞에서 바로 찾고 바로 접수)</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --yellow-soft:#FFF8DE;
+    --black:#111111; --white:#ffffff; --bg:#F5F5F3; --border:#E8E6E0;
+    --gray:#8A8A90; --gray-dark:#5A5A60; --red:#E5484D; --red-soft:#FDEAEA;
+    --blue:#2F6FE5; --blue-soft:#EEF4FF; --green:#2F9E58; --green-soft:#E8F6ED;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;padding-bottom:50px;}
+  .badge-fix{position:fixed;top:12px;left:12px;background:var(--black);color:#fff;font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;z-index:200;}
+  .badge-sub{position:fixed;top:12px;left:112px;background:#fff;color:#555;font-size:11px;font-weight:600;padding:6px 12px;border-radius:20px;z-index:200;border:1px solid var(--border);}
+
+  .wrap{max-width:720px;margin:0 auto;padding:64px 20px 40px;}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
+  .topbar .who{font-size:12.5px;color:var(--gray);font-weight:700;}
+  .topbar .who b{color:var(--black);}
+  .topbar .store-pick{border:1.5px solid var(--yellow-dark);background:var(--yellow-soft);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:800;color:#5C4600;cursor:pointer;font-family:inherit;}
+
+  /* ---- 검색이 주인공 ---- */
+  .search-hero{margin-bottom:20px;}
+  .search-hero h1{font-size:22px;font-weight:800;margin:0 0 14px;letter-spacing:-.5px;}
+  .search-box{position:relative;}
+  .search-box input{width:100%;border:2px solid var(--black);border-radius:18px;padding:19px 19px 19px 52px;font-size:16px;font-weight:600;font-family:inherit;background:var(--white);outline:none;}
+  .search-box input::placeholder{color:#B4B2AC;font-weight:500;}
+  .search-box input:focus{border-color:var(--yellow-dark);box-shadow:0 0 0 4px rgba(255,200,0,.18);}
+  .search-box .ico{position:absolute;left:19px;top:50%;transform:translateY(-50%);font-size:19px;opacity:.45;}
+  .search-tip{font-size:11.5px;color:var(--gray);margin-top:9px;padding-left:4px;}
+
+  .results{margin-top:14px;}
+  .res-row{background:var(--white);border-radius:15px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:13px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.05);border-left:3px solid transparent;}
+  .res-row:hover{transform:translateY(-2px);}
+  .res-row.as{border-left-color:var(--red);}
+  .res-row.pr{border-left-color:var(--blue);}
+  .res-row .kind{font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;flex-shrink:0;}
+  .res-row.as .kind{background:var(--red-soft);color:var(--red);}
+  .res-row.pr .kind{background:var(--blue-soft);color:var(--blue);}
+  .res-row .info{flex:1;min-width:0;}
+  .res-row .info .n{font-size:14px;font-weight:800;}
+  .res-row .info .p{font-size:12px;color:var(--gray-dark);margin-top:3px;}
+  .res-row .info .m{font-size:11px;color:var(--gray);margin-top:3px;}
+  .res-row .stt{font-size:11px;font-weight:800;padding:5px 11px;border-radius:20px;flex-shrink:0;text-align:center;}
+  .res-row .stt.done{background:var(--green-soft);color:var(--green);}
+  .res-row .stt.wip{background:var(--yellow-soft);color:#8A7300;}
+  .res-none{background:var(--white);border-radius:15px;padding:26px;text-align:center;color:var(--gray);font-size:13px;}
+  .res-none b{color:var(--black);}
+
+  /* ---- 빠른 접수 ---- */
+  .quick{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:26px 0 30px;}
+  .quick button{border:none;border-radius:18px;padding:19px;cursor:pointer;font-family:inherit;text-align:left;transition:transform .13s;}
+  .quick button:active{transform:scale(.97);}
+  .quick .as{background:var(--black);color:#fff;}
+  .quick .pr{background:var(--yellow);color:#3A2C00;}
+  .quick button .t{font-size:15.5px;font-weight:800;display:block;}
+  .quick button .d{font-size:11px;font-weight:600;opacity:.6;margin-top:4px;display:block;}
+
+  /* ---- 오늘 한 줄 요약 ---- */
+  .sec{font-size:12px;font-weight:800;color:var(--gray);margin:0 0 11px;}
+  .today{background:var(--white);border-radius:18px;padding:4px 0;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:28px;}
+  .t-row{display:flex;align-items:center;gap:12px;padding:14px 17px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .t-row:last-child{border-bottom:none;}
+  .t-row:hover{background:#FAFAF8;}
+  .t-row .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .t-row .dot.r{background:var(--red);}
+  .t-row .dot.y{background:var(--yellow-dark);}
+  .t-row .dot.b{background:var(--blue);}
+  .t-row .dot.g{background:var(--green);}
+  .t-row .l{flex:1;font-size:13.5px;font-weight:700;}
+  .t-row .n{font-size:15px;font-weight:800;}
+  .t-row .n.zero{color:#C8C6C0;}
+  .t-row .a{color:#C8C6C0;font-size:15px;}
+
+  /* ---- 내가 오늘 등록한 건 ---- */
+  .mine-list{background:var(--white);border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .m-row{display:flex;align-items:center;gap:12px;padding:13px 17px;border-bottom:1px solid var(--border);}
+  .m-row:last-child{border-bottom:none;}
+  .m-row .k{font-size:10px;font-weight:800;padding:3px 8px;border-radius:7px;flex-shrink:0;}
+  .m-row .k.as{background:var(--red-soft);color:var(--red);}
+  .m-row .k.pr{background:var(--blue-soft);color:var(--blue);}
+  .m-row .txt{flex:1;min-width:0;}
+  .m-row .txt .t{font-size:13px;font-weight:700;}
+  .m-row .txt .d{font-size:11px;color:var(--gray);margin-top:2px;}
+  .m-row .tm{font-size:11px;color:var(--gray);font-weight:700;flex-shrink:0;}
+  .m-empty{padding:24px;text-align:center;color:var(--gray);font-size:12.5px;}
+
+  .note{font-size:11px;color:#AAA8A2;text-align:center;margin-top:28px;line-height:1.6;}
+
+  @media(max-width:560px){
+    .wrap{padding:60px 15px 30px;}
+    .quick{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="badge-fix">시안 C</div>
+<div class="badge-sub">카운터 홈 — 손님 앞에서 찾고, 바로 접수</div>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="who"><b>신재현</b> 님 · 8월 10일</div>
+    <button class="store-pick">구월로데오 ▾</button>
+  </div>
+
+  <div class="search-hero">
+    <h1>어떤 손님이 오셨나요?</h1>
+    <div class="search-box">
+      <span class="ico">🔍</span>
+      <input id="q" placeholder="고객 이름, 연락처 뒷 4자리, 제품명" oninput="doSearch()" autocomplete="off">
+    </div>
+    <div class="search-tip">예: "김도윤", "5678", "그래피티" — AS 접수 건과 상품 예약을 같이 찾아드려요</div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div class="quick">
+    <button class="as" onclick="alert('AS 접수 등록 화면이 열립니다')">
+      <span class="t">🔧 AS 접수하기</span>
+      <span class="d">고장·불량 기기 맡아두기</span>
+    </button>
+    <button class="pr" onclick="alert('상품 예약 등록 화면이 열립니다')">
+      <span class="t">📦 상품 예약받기</span>
+      <span class="d">미취급·품절 상품 문의</span>
+    </button>
+  </div>
+
+  <div class="sec">우리 매장 오늘 상황</div>
+  <div class="today" id="today"></div>
+
+  <div class="sec">내가 오늘 등록한 건</div>
+  <div class="mine-list" id="mine-list"></div>
+
+  <div class="note">
+    ※ 화면의 숫자는 실제 데이터 규모를 반영한 예시입니다.<br>
+    검색창에 아무거나 쳐보세요 — 실제로 동작합니다.
+  </div>
+</div>
+
+<script>
+const DATA = [
+  {kind:'as', name:'김도윤', phone:'5678', product:'그래피티C · 배터리[블랙]', status:'제조사 검사중', done:false, days:12, store:'구월로데오'},
+  {kind:'as', name:'송준호', phone:'1122', product:'그래피티2 · 핑크', status:'ERP 기입완료', done:true, days:100, store:'구월로데오'},
+  {kind:'as', name:'신소미', phone:'3344', product:'그래피티3 · 퍼플', status:'접수', done:false, days:101, store:'구월로데오'},
+  {kind:'as', name:'권도영', phone:'7788', product:'롤리팟j · 핑크', status:'재입고 완료', done:false, days:8, store:'구월로데오'},
+  {kind:'as', name:'오은실', phone:'9900', product:'그래피티2 · 그린', status:'고객 전달 대기', done:false, days:3, store:'구월로데오'},
+  {kind:'as', name:'김동민', phone:'2233', product:'쥬피터 · 칼피스', status:'제조사 검사중', done:false, days:22, store:'구월로데오'},
+  {kind:'pr', name:'박서연', phone:'4455', product:'RELX 파이 맥스 머스캣', status:'입고 완료 · 연락 대기', done:false, days:2, store:'구월로데오'},
+  {kind:'pr', name:'최민준', phone:'6677', product:'쥴 브리즈 민트', status:'검토 대기', done:false, days:1, store:'구월로데오'},
+];
+
+function doSearch(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const box = document.getElementById('results');
+  if(!q){ box.innerHTML=''; return; }
+  const hits = DATA.filter(d =>
+    d.name.toLowerCase().includes(q) || d.phone.includes(q) || d.product.toLowerCase().includes(q)
+  );
+  if(!hits.length){
+    box.innerHTML = `<div class="res-none">"<b>${q}</b>"로 찾은 접수 건이 없어요.<br>아래에서 새로 접수해주세요.</div>`;
+    return;
+  }
+  box.innerHTML = hits.map(d=>`
+    <div class="res-row ${d.kind}" onclick="alert('${d.name} 고객 · ${d.product} 상세로 이동합니다')">
+      <span class="kind">${d.kind==='as'?'AS':'예약'}</span>
+      <div class="info">
+        <div class="n">${d.name} <span style="font-weight:600;color:#8A8A90;font-size:12px">· ${d.phone}</span></div>
+        <div class="p">${d.product}</div>
+        <div class="m">${d.store} · ${d.days}일 전 접수</div>
+      </div>
+      <span class="stt ${d.done?'done':'wip'}">${d.done?'완료':d.status}</span>
+    </div>`).join('');
+}
+
+const TODAY = [
+  {c:'r', l:'고객에게 연락해야 하는 건', n:2},
+  {c:'y', l:'우리 매장 AS 처리중', n:97},
+  {c:'b', l:'상품 예약 대기', n:0},
+  {c:'g', l:'오늘 새로 접수됨', n:1},
+];
+document.getElementById('today').innerHTML = TODAY.map(t=>`
+  <div class="t-row" onclick="alert('해당 목록으로 이동합니다')">
+    <span class="dot ${t.c}"></span>
+    <span class="l">${t.l}</span>
+    <span class="n ${t.n===0?'zero':''}">${t.n}</span>
+    <span class="a">›</span>
+  </div>`).join('');
+
+const MINE = [
+  {kind:'as', t:'그래피티2 · 그린', d:'오은실 고객 · 현장교체', tm:'14:20'},
+  {kind:'pr', t:'RELX 파이 맥스 머스캣', d:'박서연 고객 · 미취급 상품', tm:'11:05'},
+];
+document.getElementById('mine-list').innerHTML = MINE.length ? MINE.map(m=>`
+  <div class="m-row">
+    <span class="k ${m.kind}">${m.kind==='as'?'AS':'예약'}</span>
+    <div class="txt"><div class="t">${m.t}</div><div class="d">${m.d}</div></div>
+    <span class="tm">${m.tm}</span>
+  </div>`).join('') : '<div class="m-empty">오늘 등록한 건이 아직 없어요</div>';
+</script>
+</body>
+</html>

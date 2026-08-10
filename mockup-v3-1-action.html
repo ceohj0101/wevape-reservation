@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시안 A — 액션 홈 (지금 할 일만 보여주기)</title>
+<style>
+  :root{
+    --yellow:#FFC800; --yellow-dark:#E0AF00; --yellow-soft:#FFF8DE;
+    --black:#111111; --white:#ffffff; --bg:#F5F5F3; --border:#E8E6E0;
+    --gray:#8A8A90; --gray-dark:#5A5A60; --red:#E5484D; --red-soft:#FDEAEA;
+    --blue:#2F6FE5; --blue-soft:#EEF4FF; --green:#2F9E58;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  body{margin:0;font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--black);-webkit-font-smoothing:antialiased;padding-bottom:60px;}
+  .badge-fix{position:fixed;top:12px;left:12px;background:var(--black);color:#fff;font-size:11px;font-weight:800;padding:6px 12px;border-radius:20px;z-index:200;}
+  .badge-sub{position:fixed;top:12px;left:112px;background:#fff;color:#555;font-size:11px;font-weight:600;padding:6px 12px;border-radius:20px;z-index:200;border:1px solid var(--border);}
+
+  .wrap{max-width:680px;margin:0 auto;padding:64px 20px 40px;}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;}
+  .topbar .brand{font-size:13.5px;font-weight:800;}
+  .topbar .brand .dot{display:inline-block;width:7px;height:7px;background:var(--yellow);border-radius:50%;margin-right:6px;vertical-align:1px;}
+  .topbar .out{border:none;background:none;color:var(--gray);font-size:12.5px;font-weight:700;cursor:pointer;}
+
+  .hello{margin-bottom:24px;}
+  .hello h1{font-size:24px;font-weight:800;margin:0 0 6px;letter-spacing:-.5px;}
+  .hello .sub{font-size:13px;color:var(--gray);font-weight:600;}
+  .hello .sub .store{color:var(--black);font-weight:800;background:var(--yellow-soft);padding:2px 9px;border-radius:20px;border:1px solid var(--yellow-dark);}
+
+  /* ---- 큰 액션 버튼: 손님 앞에서 가장 많이 하는 두 가지 ---- */
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:32px;}
+  .action-btn{border:none;border-radius:22px;padding:24px 20px;text-align:left;cursor:pointer;transition:transform .14s,box-shadow .14s;font-family:inherit;}
+  .action-btn:active{transform:scale(.97);}
+  .action-btn.as{background:var(--black);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.14);}
+  .action-btn.pr{background:var(--yellow);color:#3A2C00;box-shadow:0 6px 18px rgba(224,175,0,.28);}
+  .action-btn .ico{font-size:26px;display:block;margin-bottom:14px;}
+  .action-btn .t{font-size:18px;font-weight:800;letter-spacing:-.3px;display:block;}
+  .action-btn .d{font-size:11.5px;font-weight:600;opacity:.62;margin-top:5px;display:block;}
+
+  /* ---- 지금 확인이 필요한 일 ---- */
+  .sec-label{font-size:12px;font-weight:800;color:var(--gray);letter-spacing:.3px;margin:0 0 11px;display:flex;align-items:center;gap:7px;}
+  .sec-label .cnt{background:var(--red);color:#fff;font-size:10.5px;padding:1px 7px;border-radius:20px;}
+
+  .todo-card{background:var(--white);border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:30px;}
+  .todo-row{display:flex;align-items:center;gap:14px;padding:17px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
+  .todo-row:last-child{border-bottom:none;}
+  .todo-row:hover{background:#FAFAF8;}
+  .todo-row .badge{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+  .todo-row .badge.urgent{background:var(--red-soft);}
+  .todo-row .badge.info{background:var(--blue-soft);}
+  .todo-row .badge.old{background:#F1F0EC;}
+  .todo-row .txt{flex:1;min-width:0;}
+  .todo-row .txt .t{font-size:14.5px;font-weight:700;}
+  .todo-row .txt .d{font-size:11.5px;color:var(--gray);margin-top:3px;}
+  .todo-row .num{font-size:20px;font-weight:800;flex-shrink:0;}
+  .todo-row .num.urgent{color:var(--red);}
+  .todo-row .arrow{color:#C8C6C0;font-size:16px;flex-shrink:0;margin-left:2px;}
+  .todo-empty{padding:30px 18px;text-align:center;color:var(--gray);font-size:13px;}
+
+  /* ---- 매장 현황 (접어둔 상태가 기본) ---- */
+  .store-block{background:var(--white);border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px;}
+  .mine-head{display:flex;justify-content:space-between;align-items:flex-start;}
+  .mine-head .nm{font-size:16px;font-weight:800;}
+  .mine-head .nm .tag{font-size:10px;font-weight:800;color:#8A7300;background:var(--yellow-soft);padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:2px;}
+  .mine-head .go{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:6px 13px;font-size:11.5px;font-weight:800;color:var(--gray-dark);cursor:pointer;}
+  .mine-head .go:hover{border-color:var(--yellow-dark);color:var(--black);}
+  .mine-stats{display:flex;gap:26px;margin-top:16px;}
+  .mine-stats .st .n{font-size:24px;font-weight:800;line-height:1;}
+  .mine-stats .st .n.red{color:var(--red);}
+  .mine-stats .st .l{font-size:11px;color:var(--gray);font-weight:700;margin-top:5px;}
+
+  .all-toggle{width:100%;background:var(--white);border:none;border-radius:20px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:inherit;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .all-toggle .l{font-size:13.5px;font-weight:800;}
+  .all-toggle .r{font-size:12px;color:var(--gray);font-weight:700;}
+  .all-list{display:none;margin-top:10px;background:var(--white);border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .all-list.open{display:block;}
+  .all-row{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .all-row:last-child{border-bottom:none;}
+  .all-row:hover{background:#FAFAF8;}
+  .all-row .nm{flex:1;font-size:13.5px;font-weight:700;}
+  .all-row .bar{width:78px;height:6px;background:var(--bg);border-radius:4px;overflow:hidden;flex-shrink:0;}
+  .all-row .bar i{display:block;height:100%;background:var(--yellow-dark);border-radius:4px;}
+  .all-row .n{width:38px;text-align:right;font-size:13px;font-weight:800;flex-shrink:0;}
+  .all-row .n.zero{color:#C8C6C0;}
+
+  .note{font-size:11px;color:#AAA8A2;text-align:center;margin-top:26px;line-height:1.6;}
+
+  @media(max-width:560px){
+    .wrap{padding:60px 15px 30px;}
+    .actions{grid-template-columns:1fr;}
+    .action-btn{padding:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="badge-fix">시안 A</div>
+<div class="badge-sub">액션 홈 — 목록보다 "지금 할 일" 먼저</div>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>위베이프 예약관리</div>
+    <button class="out">로그아웃</button>
+  </div>
+
+  <div class="hello">
+    <h1>안녕하세요, 신재현 님</h1>
+    <div class="sub">오늘은 8월 10일 · <span class="store">구월로데오</span></div>
+  </div>
+
+  <div class="actions">
+    <button class="action-btn as" onclick="alert('AS 접수 등록 화면이 바로 열립니다')">
+      <span class="ico">🔧</span>
+      <span class="t">AS 접수하기</span>
+      <span class="d">고장·불량 기기를 맡아둘 때</span>
+    </button>
+    <button class="action-btn pr" onclick="alert('상품 예약 등록 화면이 바로 열립니다')">
+      <span class="ico">📦</span>
+      <span class="t">상품 예약받기</span>
+      <span class="d">미취급·품절 상품을 찾을 때</span>
+    </button>
+  </div>
+
+  <div class="sec-label">지금 확인이 필요한 일 <span class="cnt" id="todo-cnt">3</span></div>
+  <div class="todo-card" id="todo-card"></div>
+
+  <div class="sec-label">내 매장</div>
+  <div class="store-block">
+    <div class="mine-head">
+      <div class="nm">구월로데오 <span class="tag">내 소속</span></div>
+      <button class="go">전체 목록 →</button>
+    </div>
+    <div class="mine-stats">
+      <div class="st"><div class="n red">97</div><div class="l">AS 처리중</div></div>
+      <div class="st"><div class="n">0</div><div class="l">예약 대기</div></div>
+      <div class="st"><div class="n">2</div><div class="l">이번 주 신규</div></div>
+    </div>
+  </div>
+
+  <button class="all-toggle" onclick="toggleAll()">
+    <span class="l">다른 매장 9곳</span>
+    <span class="r" id="all-toggle-r">AS 227건 · 펼치기 ▾</span>
+  </button>
+  <div class="all-list" id="all-list"></div>
+
+  <div class="note">
+    ※ 화면의 숫자는 실제 데이터 규모(AS 처리중 324건)를 반영한 예시입니다.<br>
+    직원은 본인 매장이 크게, 실장·관리자는 전체 매장이 펼쳐진 상태로 시작합니다.
+  </div>
+</div>
+
+<script>
+const STORES = [
+  {name:'구월로데오', as:97, mine:true},
+  {name:'논현', as:65},
+  {name:'부천상동', as:50},
+  {name:'연수', as:31},
+  {name:'구월길병원', as:23},
+  {name:'부천중동', as:23},
+  {name:'인천공항', as:22},
+  {name:'검단', as:9},
+  {name:'을지로', as:5},
+  {name:'계산', as:0},
+];
+
+const TODOS = [
+  {icon:'📞', cls:'urgent', t:'고객에게 연락해야 해요', d:'수리 끝난 기기 · 입고된 예약 상품', n:2, urgent:true},
+  {icon:'📥', cls:'info', t:'오늘 새로 들어온 AS', d:'아직 아무도 처리 안 한 건', n:1},
+  {icon:'🗂', cls:'old', t:'30일 넘게 안 끝난 AS', d:'정리하거나 상태를 업데이트해주세요', n:61},
+];
+
+function renderTodos(){
+  const el = document.getElementById('todo-card');
+  if(!TODOS.length){ el.innerHTML = '<div class="todo-empty">지금 급한 일은 없어요 👍</div>'; return; }
+  el.innerHTML = TODOS.map(t=>`
+    <div class="todo-row" onclick="alert('해당 목록으로 바로 이동합니다')">
+      <div class="badge ${t.cls}">${t.icon}</div>
+      <div class="txt"><div class="t">${t.t}</div><div class="d">${t.d}</div></div>
+      <div class="num ${t.urgent?'urgent':''}">${t.n}</div>
+      <div class="arrow">›</div>
+    </div>`).join('');
+  document.getElementById('todo-cnt').textContent = TODOS.length;
+}
+
+function renderAll(){
+  const others = STORES.filter(s=>!s.mine);
+  const max = Math.max(...others.map(s=>s.as));
+  document.getElementById('all-list').innerHTML = others.map(s=>`
+    <div class="all-row" onclick="alert('${s.name} 매장 목록으로 이동합니다')">
+      <div class="nm">${s.name}</div>
+      <div class="bar"><i style="width:${max? (s.as/max*100):0}%"></i></div>
+      <div class="n ${s.as===0?'zero':''}">${s.as}</div>
+    </div>`).join('');
+}
+
+function toggleAll(){
+  const list = document.getElementById('all-list');
+  const open = list.classList.toggle('open');
+  document.getElementById('all-toggle-r').textContent = open ? 'AS 227건 · 접기 ▴' : 'AS 227건 · 펼치기 ▾';
+}
+
+renderTodos();
+renderAll();
+</script>
+</body>
+</html>
