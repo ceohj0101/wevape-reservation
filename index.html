@@ -976,11 +976,14 @@ function renderAsStrip(){
     {key:'hq_simple', name:'본사 제품 · 단순접수', cat:'hq'},
     {key:'other',     name:'타사 제품',            cat:'other'},
   ].filter(g => AS_CATEGORY_FILTER==='all' || g.cat===AS_CATEGORY_FILTER);
+  /* 건이 하나도 없는 흐름은 숨겨서 화면을 짧게 유지하되,
+     전부 비어있으면(그 달에 접수가 없으면) 최소한 기본 흐름은 보여줍니다. */
+  const anyRows = GROUPS.some(g => scoped.some(r=>asFlowKey(r)===g.key));
   let html = '';
-  GROUPS.forEach(g=>{
-    const cat = g.key;
+  GROUPS.forEach((g, gi)=>{
     const rows = scoped.filter(r=>asFlowKey(r)===g.key);
-    if(!rows.length && AS_CATEGORY_FILTER==='all') return;
+    if(anyRows && !rows.length && AS_CATEGORY_FILTER==='all') return;
+    if(!anyRows && gi > 1) return;
     const flow = STATUS_FLOW_AS[g.key];
     const allActive = !AS_STAGE_FILTER;
     let tiles = stageTile('전체', '', rows.length, allActive, {onclick:`setAsStage(null)`});
