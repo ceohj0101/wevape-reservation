@@ -91,7 +91,8 @@
 
   /* ---------- 목록 + 상세패널 ---------- */
   .md-layout{display:flex;gap:16px;align-items:flex-start;}
-  .md-list{width:300px;flex-shrink:0;}
+  .md-list{width:380px;flex-shrink:0;}
+  @media (max-width:1200px){ .md-list{width:320px;} }
   .md-list .row{padding:11px 12px;border-radius:9px;margin-bottom:6px;border:1.5px solid var(--border);background:#fff;cursor:pointer;}
   .md-list .row:hover{border-color:#ccc;}
   .md-list .row.selected{background:#fffceb;border-color:var(--yellow-dark);}
@@ -115,20 +116,23 @@
   .detail-card .field span:first-child{color:var(--gray);flex-shrink:0;}
   .detail-card .field b{color:#222;font-weight:700;text-align:right;}
   .detail-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center;}
-  /* 진행 상황 버튼 — 어느 단계인지 펼치지 않고 바로 보이게 */
-  /* 한 줄 압축 목록 — 많은 접수 건을 한 화면에서 훑기 위한 배치 */
-  .md-list .row.cmp{display:flex;align-items:center;gap:9px;padding:9px 11px;}
+  /* 압축 목록 — 제품명이 잘리지 않도록 두 줄로 두되 기존보다 촘촘하게 */
+  .md-list .row.cmp{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;}
   .md-list .row.cmp.checked{background:#f4faf6;}
-  .md-list .row.cmp .chk{width:22px;height:22px;flex:0 0 22px;border:1.5px solid var(--border);background:#fff;border-radius:6px;
-    cursor:pointer;font-size:13px;font-weight:800;color:transparent;line-height:1;padding:0;}
+  .md-list .row.cmp .chk{width:21px;height:21px;flex:0 0 21px;margin-top:1px;border:1.5px solid var(--border);background:#fff;border-radius:6px;
+    cursor:pointer;font-size:12.5px;font-weight:800;color:transparent;line-height:1;padding:0;}
   .md-list .row.cmp .chk:hover{border-color:var(--yellow-dark);}
   .md-list .row.cmp .chk.on{background:#2f9e58;border-color:#2f9e58;color:#fff;}
-  .md-list .row.cmp .c-date{font-size:11px;color:var(--gray);font-weight:700;flex:0 0 38px;}
-  .md-list .row.cmp .c-store{font-size:11px;font-weight:800;color:#5c4600;background:#fff3cc;padding:2px 7px;border-radius:20px;flex:0 0 auto;white-space:nowrap;}
-  .md-list .row.cmp .c-prod{font-size:12.5px;font-weight:700;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .md-list .row.cmp .c-cust{font-size:11.5px;color:var(--gray);flex:0 0 auto;white-space:nowrap;}
-  .md-list .row.cmp .c-tags{display:flex;gap:4px;flex:0 0 auto;}
-  .md-list .row.cmp .c-tags .tag{font-size:10px;padding:2px 6px;}
+  .md-list .row.cmp .c-body{flex:1 1 auto;min-width:0;}
+  .md-list .row.cmp .c-line1{display:flex;align-items:center;gap:6px;}
+  .md-list .row.cmp .c-prod{font-size:13px;font-weight:700;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .md-list .row.cmp .c-line1 .tag{flex:0 0 auto;font-size:10px;padding:2px 7px;}
+  .md-list .row.cmp .c-line2{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;}
+  .md-list .row.cmp .c-date{font-size:11px;color:var(--gray);font-weight:700;}
+  .md-list .row.cmp .c-store{font-size:10.5px;font-weight:800;color:#5c4600;background:#fff3cc;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+  .md-list .row.cmp .c-cust{font-size:11.5px;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;}
+  .md-list .row.cmp .c-line2 .tag{font-size:10px;padding:2px 6px;}
+  .tag.warn-tag{background:#fdeaea;color:#c92a2a;}
 
   .pr-reason{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);}
   .pr-reason:last-child{border-bottom:none;}
@@ -1792,18 +1796,24 @@ function asRowHtml(r){
   /* 담당자가 한 화면에서 많은 건을 훑어야 해서 한 줄로 압축했습니다.
      확인 체크 → 접수일 → 매장 → 제품 → 고객 → 상태 순으로 눈이 흐르게 배치합니다. */
   const checked = !!r.checked_at;
+  /* 제품명이 잘리지 않게 두 줄로 나눕니다.
+     윗줄 = 제품명 + 상태, 아랫줄 = 접수일 · 매장 · 고객. 기존 3줄보다는 여전히 촘촘합니다. */
   return `<div class="row cmp ${selected?'selected':''} ${checked?'checked':''}" onclick="selectAsItem(${r.id})">
     <button class="chk ${checked?'on':''}" title="${checked?'확인 완료 — 누르면 해제':'실물 확인했으면 체크'}"
       onclick="event.stopPropagation();toggleAsChecked(${r.id}, ${!checked})">${checked?'✓':''}</button>
-    <span class="c-date">${fmtDateOnly(r.received_date || r.created_at)}</span>
-    <span class="c-store">${esc(storeName(r.store_id))}</span>
-    <span class="c-prod">${esc(asProductLabel(r))}</span>
-    <span class="c-cust">${esc(r.customer_name||'-')}</span>
-    <span class="c-tags">
-      <span class="tag ${done?'status-purchased':''}">${esc(ALL_STATUS_LABELS_AS[r.status] || r.status)}</span>
-      ${!done && overdue ? `<span class="tag overdue-tag">${days}일째</span>` : ''}
-      ${!r.service_method ? '<span class="tag" style="background:#fdeaea;color:#c92a2a;">방식 미확인</span>' : ''}
-      ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷</span>` : ''}
+    <span class="c-body">
+      <span class="c-line1">
+        <span class="c-prod">${esc(asProductLabel(r))}</span>
+        <span class="tag ${done?'status-purchased':''}">${esc(ALL_STATUS_LABELS_AS[r.status] || r.status)}</span>
+      </span>
+      <span class="c-line2">
+        <span class="c-date">${fmtDateOnly(r.received_date || r.created_at)}</span>
+        <span class="c-store">${esc(storeName(r.store_id))}</span>
+        <span class="c-cust">${esc(r.customer_name||'-')}</span>
+        ${!done && overdue ? `<span class="tag overdue-tag">${days}일째</span>` : ''}
+        ${!r.service_method ? '<span class="tag warn-tag">방식 미확인</span>' : ''}
+        ${r.photo_urls && r.photo_urls.length ? `<span class="tag has-photo">📷</span>` : ''}
+      </span>
     </span>
   </div>`;
 }
